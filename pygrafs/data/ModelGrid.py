@@ -101,6 +101,8 @@ class ModelGrid(object):
                 end_y = 0
             subset_data = self.file_obj.variables[variable][start_time:end_time,
                                                             start_y:end_y, start_x:end_x]
+            #print variable, hasattr(subset_data,"mask")
+            #print subset_data.max(), subset_data.min()
             subset_obj = ModelGridSubset(variable,subset_data,
                                          self.valid_dates[start_time:end_time],
                                          self.y[start_y:end_y,start_x:end_x],
@@ -146,6 +148,8 @@ class ModelGridSubset(object):
         self.times = times
         self.y = y
         self.x = x
+        self.valid_time_indices = self.get_valid_time_indices()
+        self.valid_times = self.times[self.valid_time_indices]
 
     def get_point_data(self, time, y_point, x_point, method='nearest'):
         t = self.get_time_index(time)
@@ -154,6 +158,30 @@ class ModelGridSubset(object):
 
     def get_time_index(self, time):
         return np.argmin(np.abs((self.times - time).total_seconds()))
+    
+    def get_unique_dates(self):
+        return np.unique(np.array([t.date() for t in self.times[self.valid_time_indices]]))
+
+    def get_valid_data_times(self):
+        valid_data_times = []
+        for t in range(self.data.shape[0]):
+            if hasattr(self.data[t], 'mask'):
+                if np.any(self.data[t].mask == False):
+                    valid_data_times.append(self.times[t])
+            else:
+                valid_data_times.append(self.times[t])
+        return np.array(valid_data_times)
+
+    def get_valid_time_indices(self):
+        valid_indices = []
+        for t in range(self.data.shape[0]):
+            if hasattr(self.data[t], 'mask'):
+                if np.any(self.data[t].mask == False):
+                    valid_indices.append(t)
+            else:
+                valid_indices.append(t)
+        return np.array(valid_indices, dtype=int)
+
 
     def coordinate_to_index(self, x, y):
         """
