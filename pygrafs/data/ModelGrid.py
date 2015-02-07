@@ -152,17 +152,76 @@ class ModelGridSubset(object):
         self.valid_times = self.times[self.valid_time_indices]
 
     def get_point_data(self, time, y_point, x_point, method='nearest'):
+        """
+        Extract the value of a grid point at a particular time
+
+        :param time: datetime object corresponding to time of interest
+        :param y_point: latitude of point
+        :param x_point: longitude of point
+        :param method: 'nearest': get grid point nearest to input longitude and latitude
+        :return: value of data at point
+        """
         t = self.get_time_index(time)
         i, j = self.coordinate_to_index(x_point, y_point)
         return self.data[t, i, j]
 
+    def get_neighbor_stats(self, time, y_point, x_point, indices=False, neighbor_radius=1, stats=['mean', 'min', 'max', 'gradient']):
+        """
+        Calculate statistics about the immediate neighborhood of a grid point.
+
+        :param time: datetime object or index corresponding to time of interest
+        :param y_point: latitude or row index of point
+        :param x_point: longitude or column index of point
+        :param indices: If false, convert input coordinates to indices. If true, input coordinates are array indices
+        :param neighbor_radius: number of grid points to in each direction to include in neighborhood
+        :param stats: list of statistics to be calculated at that point
+        :return: numpy.array of statistics.
+        """
+        if indices:
+            t = time
+            i = y_point
+            j = x_point
+        else:
+            t = self.get_time_index(time)
+            i, j = self.coordinate_to_index(x_point, y_point)
+        values = self.data[t,i - neighbor_radius:i + neighbor_radius + 1, j - neighbor_radius: j + neighbor_radius]
+        stat_values = np.zeros(len(stats))
+        for s, stat in enumerate(stats):
+            if stat in ['mean', 'min', 'max', 'std', 'var']:
+                stat_values[s] = getattr(values, stat)()
+            elif stat in ['median']:
+                stat_values[s] = np.median(stat)
+            elif stat in ['gradient']:
+                grad_x, grad_y = np.gradient(values)
+                stat_values[s] = np.sqrt(grad_x[neighbor_radius, neighbor_radius] ** 2
+                                         + grad_y[neighbor_radius, neighbor_radius] ** 2)
+            else:
+                stat[s] = np.nan
+        return stat_values
+
     def get_time_index(self, time):
+        """
+        Calculates the array index of the timestamp closet to the input time.
+
+        :param time: a datetime object
+        :return: array index of closest timestamp
+        """
         return np.argmin(np.abs((self.times - time).total_seconds()))
     
     def get_unique_dates(self):
+        """
+        Extract the individual dates covered by the model run
+
+        :return: array of date objects
+        """
         return np.unique(np.array([t.date() for t in self.times[self.valid_time_indices]]))
 
     def get_valid_data_times(self):
+        """
+        Get an array of datetimes that correspond to timesteps with valid data.
+
+        :return: array of valid datetimes
+        """
         valid_data_times = []
         for t in range(self.data.shape[0]):
             if hasattr(self.data[t], 'mask'):
@@ -173,15 +232,19 @@ class ModelGridSubset(object):
         return np.array(valid_data_times)
 
     def get_valid_time_indices(self):
+        """
+        Get the array indices of times that have valid data
+
+        :return:
+        """
         valid_indices = []
         for t in range(self.data.shape[0]):
             if hasattr(self.data[t], 'mask'):
-                if np.any(self.data[t].mask == False):
+                if np.any(~self.data[t].mask):
                     valid_indices.append(t)
             else:
                 valid_indices.append(t)
         return np.array(valid_indices, dtype=int)
-
 
     def coordinate_to_index(self, x, y):
         """

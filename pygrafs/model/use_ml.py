@@ -1,10 +1,5 @@
 import argparse
-from glob import glob
-
 import pandas as pd
-import numpy as np
-from sklearn.ensemble import GradientBoostingRegressor
-
 from pygrafs.util.Config import Config
 from MLTrainer import MLTrainer
 

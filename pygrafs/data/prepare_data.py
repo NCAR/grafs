@@ -1,5 +1,5 @@
 from multiprocessing import Pool
-import os
+from pygrafs.util.pool_manager import pool_manager
 from glob import glob
 import argparse
 from datetime import datetime,timedelta
@@ -26,6 +26,17 @@ def main():
             print curr_date
             create_forecast_data(config, curr_date)
             curr_date += timedelta(days=1) 
+    if args.proc > 1:
+        pool = Pool(args.proc)
+        procs = {}
+        try:
+            while curr_date < end_date:
+                procs[curr_date] = pool.apply_async(create_forecast_data, (config, curr_date))
+                curr_date += timedelta(days=1)
+            pool_manager(procs, False)
+        finally:
+            pool.close()
+            pool.join()
     return
 
 
@@ -54,6 +65,13 @@ def create_forecast_data(config, date):
 
 
 def load_obs(config, dates):
+    """
+    Load site observations from every file in a particular date range. Assumes 1 netCDF file per day.
+
+    :param config: Config object containing observation directory and variable information.
+    :param dates: list of date or datetime objects for each day in the dataset.
+    :return: dictionary of ObsSite objects containing observation data.
+    """
     all_obs = {}
     for date in dates:
         obs_files = sorted(glob(config.obs_dir + date.strftime("/%Y%m%d/*.nc")))
@@ -66,6 +84,12 @@ def load_obs(config, dates):
 
 
 def load_model_forecasts(config, date):
+    """
+    Loads gridded model output from netCDF files and stores it by variable and model run.
+
+    :param config: Config object containing model directory, variable, and location information.
+    :param date: date or datetime object containing the date of the model runs.
+    """
     model_files = sorted(glob(config.model_dir + date.strftime("/%Y%m%d/*.nc")))
     model_subset_grids = {}
     valid_datetimes = {}
@@ -96,6 +120,13 @@ def load_model_forecasts(config, date):
 
 
 def match_model_obs(model_grids, all_obs, config):
+    """
+    Match models output at observation sites with observations.
+
+    :param model_grids: collection of model subset grids from load_model_forecasts.
+    :param all_obs: collection of observations from load_obs.
+    :param config: Config object with information about how model and observation data should be matched.
+    """
     if config.match_method == "nearest":
         for model_name, model_grid in model_grids.iteritems():
             merged_data = None
@@ -121,13 +152,11 @@ def match_model_obs(model_grids, all_obs, config):
                         merged_data_step['sine_doy'] = np.sin(vt.timetuple().tm_yday / 365.0 * np.pi)
                         for var in model_vars:
                             merged_data_step[var + "_f"] = model_grid[var].data[mt, station_indices[:,0],station_indices[:,1]]
-
+                            neighbor_stats = np.array([model_grid[var].get_neighbor_stats(mt, station_indices[i, 0], station_indices[i, 1], indices=True, stats=config.stats) for i in range(station_indices.shape[0])])
+                            for s, stat in enumerate(config.stats):
+                                merged_data_step[var + "_f_" + stat] = neighbor_stats[:,s]
                         merged_data_obs = pd.merge(merged_data_step,all_obs[vt.date()].data[config.obs_var],
                                                    how="inner", on=['station', 'date'])
-                        merged_data_obs['diff_correction'] = merged_data_obs[config.obs_var + "_f"] - merged_data_obs[config.obs_var]
-                        merged_data_obs['ratio_correction'] = merged_data_obs[config.obs_var + "_f"] / merged_data_obs[config.obs_var] * 100
-
-                        #print "Merged"
                         if merged_data is None:
                             merged_data = merged_data_obs
                         else:
@@ -142,9 +171,18 @@ def match_model_obs(model_grids, all_obs, config):
     return
 
 def filter_data(data, queries):
+    """
+    Apply query strings to output DataFrames to filter out bad data points.
+
+    :param data: DataFrame containing merged model and observation data.
+    :param queries: list of query strings
+    :return: filtered data with new indices.
+    """
     for query in queries:
         data = data.query(query)
     data.reset_index(inplace=True)
     return data
+
+
 if __name__ == "__main__":
     main()

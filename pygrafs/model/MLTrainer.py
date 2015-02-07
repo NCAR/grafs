@@ -24,6 +24,7 @@ class MLTrainer(object):
         if query is not None:
             self.all_data = self.all_data.query(query)
             self.all_data.reset_index(inplace=True)
+        self.all_data = self.all_data.replace(np.nan, 0)
 
     def train_model(self, model_name, model_obj):
         self.models[model_name] = model_obj
@@ -34,15 +35,17 @@ class MLTrainer(object):
     def cross_validate_model(self, model_name, model_obj, n_folds):
         random_indices = np.random.permutation(self.all_data.shape[0])
         predictions = np.zeros(self.all_data.shape[0])
+        print model_name
         for f in range(n_folds):
             split_start = random_indices.size * f / n_folds
             split_end = random_indices.size * (f + 1) / n_folds
             test_indices = random_indices[split_start:split_end]
-            train_indices = np.concatenate((random_indices[:split_start],random_indices[split_end:]))
-            print "Fold {0:d} Train {1:d}, Test {2:d}".format(f,train_indices.shape[0],test_indices.shape[0])
-            model_obj.fit(self.all_data.loc[train_indices,self.input_columns], 
-                          self.all_data.loc[train_indices,self.output_column])
-            predictions[split_start:split_end] = model_obj.predict(self.all_data.loc[test_indices,self.input_columns])
+            train_indices = np.concatenate((random_indices[:split_start], random_indices[split_end:]))
+            print "Fold {0:d} Train {1:d}, Test {2:d}".format(f, train_indices.shape[0], test_indices.shape[0])
+            print self.input_columns
+            model_obj.fit(self.all_data.ix[train_indices, self.input_columns],
+                          self.all_data.ix[train_indices, self.output_column])
+            predictions[test_indices] = model_obj.predict(self.all_data.ix[test_indices, self.input_columns])
         return predictions
 
     def show_feature_importances(self):

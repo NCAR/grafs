@@ -3,7 +3,7 @@ class Config(object):
     Class that loads options from a config file and converts
     them into attributes. 
     """
-    def __init__(self, filename):
+    def __init__(self, filename, required_attributes=[]):
         config = {}
         config_file = open(filename)
         config_text = config_file.read()
@@ -13,4 +13,11 @@ class Config(object):
         exec config_text
         for a, v in config.iteritems():
             setattr(self, a, v)
+        if len(required_attributes) > 0:
+            has_required = [hasattr(self, a) for a in required_attributes]
+            if not all(has_required):
+                for i in range(len(required_attributes)):
+                    if not has_required[i]:
+                        print "{0} not found.".format(required_attributes[i])
+                exit(1)
  

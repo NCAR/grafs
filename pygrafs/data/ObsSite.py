@@ -1,6 +1,18 @@
 from netCDF4 import Dataset,num2date
 import numpy as np
 import pandas as pd
+from pvlib.clearsky import clearsky_ineichen
+from pvlib.location import Location
+
+
+def main():
+    var = "av_dswrf_sfc"
+    obs = ObsSite("/d2/dgagne/grafs/pygrafs/test/test_data/int_obs.20141215.nc")
+    obs.load_data(var)
+    obs.calc_clearsky(var)
+    print obs.data[var]
+    return
+
 
 class ObsSite(object):
     def __init__(self, filename,
@@ -50,12 +62,20 @@ class ObsSite(object):
         for (s, d), v in np.ndenumerate(data):
             flat_dict['station'].append(stations[s])
             flat_dict['date'].append(self.times[d])
-            flat_dict[variable].append(v)
+            if v > 1e30:
+                flat_dict[variable].append(np.nan)
+            else:
+                flat_dict[variable].append(v)
         flat_data = pd.DataFrame(flat_dict)
         flat_data = flat_data.dropna()
         self.data[variable] = pd.merge(flat_data, self.station_data[["lat","lon"]], left_on="station", right_index=True, how="left")
         print "Obs data shapes: ", flat_data.shape, self.data[variable].shape
         return
 
+
     def close(self):
         self.file_obj.close()
+
+
+if __name__ == "__main__":
+    main()
