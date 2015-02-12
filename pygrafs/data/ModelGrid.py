@@ -7,18 +7,16 @@ import numpy as np
 from netCDF4 import Dataset, num2date
 from scipy.ndimage.filters import convolve, maximum_filter, minimum_filter, median_filter
 
+
 class ModelGrid(object):
     """
     ModelGrid objects can load model output from netCDF files and perform
     operations on the data. The initialization method opens the file and
     loads latitude and longitude data if it is available.
 
-    :param filename: Full path and name of netCDF file containing model
-    information.
-    :param x_var: Name of the variable containing x-coordinate information.
-    Default "lon".
-    :param y_var: Name of the variable containing y-coordinate information.
-    Default "lat".
+    :param filename: Full path and name of netCDF file containing model information.
+    :param x_var: Name of the variable containing x-coordinate information. Default "lon".
+    :param y_var: Name of the variable containing y-coordinate information. Default "lat".
     """
 
     def __init__(self, filename, x_var="lon", y_var="lat",
@@ -56,8 +54,6 @@ class ModelGrid(object):
         if variable in self.file_obj.variables.keys():
             var_obj = self.file_obj.variables[variable]
             self.data[variable] = var_obj[:]
-            #if hasattr(var_obj, 'scale_factor'):
-            #    self.data[variable] = self.data[variable] * var_obj.scale_factor + var_obj.add_offset
         else:
             raise KeyError(variable + " not found")
 
@@ -102,8 +98,6 @@ class ModelGrid(object):
             subset_data = self.file_obj.variables[variable][start_time:end_time,
                                                             start_y:end_y, start_x:end_x]
             subset_data[subset_data < -30000] = 0
-            #print variable, hasattr(subset_data,"mask")
-            #print subset_data.max(), subset_data.min()
             subset_obj = ModelGridSubset(variable,subset_data,
                                          self.valid_dates[start_time:end_time],
                                          self.y[start_y:end_y,start_x:end_x],
@@ -154,7 +148,7 @@ class ModelGridSubset(object):
 
     def get_point_data(self, time, y_point, x_point, method='nearest'):
         """
-        Extract the value of a grid point at a particular time
+        Extract the value of a grid point at a particular time.
 
         :param time: datetime object corresponding to time of interest
         :param y_point: latitude of point
@@ -166,7 +160,15 @@ class ModelGridSubset(object):
         i, j = self.coordinate_to_index(x_point, y_point)
         return self.data[t, i, j]
 
-    def get_neighbor_grid_stats(self, time_index, neighbor_radius=1, stats=['mean','min','max']):
+    def get_neighbor_grid_stats(self, time_index, neighbor_radius=1, stats=['mean', 'min', 'max']):
+        """
+        Calculate grid point neighborhood statistics for every grid point at once.
+
+        :param time_index: Index of the time slice of interest
+        :param neighbor_radius: Radius of neighborhood box in grid points
+        :param stats: List of statistics being calculated. Mean, min, and max are currently supported.
+        :return: Array of statistics with the first dimension corresponding to the order of stats.
+        """
         data = self.data[time_index]
         window_size = 1 + 2 * neighbor_radius
         window = np.ones((window_size,window_size),dtype=int)

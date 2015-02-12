@@ -2,20 +2,40 @@ from glob import glob
 import cPickle as pickle
 import numpy as np
 import pandas as pd
+from collections import OrderedDict
 
 
 class MLTrainer(object):
+    """
+    Handles loading of data files and training machine learning models on the data.
+    """
     def __init__(self, data_path, data_format, input_columns, output_column):
+        """
+        Initializes MLTrainer object.
+
+        :param data_path: path to data files.
+        :param data_format: format of data files. Csv is the only currently supported format.
+        :param input_columns: list of column names being input to model
+        :param output_column:
+        :return:
+        """
         self.data_path = data_path
         self.data_format = data_format
         self.input_columns = input_columns
         self.output_column = output_column
-        self.models = {}
+        self.models = OrderedDict()
         self.all_data = None
         return
 
-    def load_data_files(self,query=None):
-        data_files = sorted(glob(self.data_path + "*.05." + self.data_format))
+    def load_data_files(self, exp="", query=None):
+        """
+        Loads data files from the specified directory.
+
+        :param exp:
+        :param query:
+        :return:
+        """
+        data_files = sorted(glob(self.data_path + "*" + exp + "*" + self.data_format))
         data_file_list = []
         for data_file in data_files:
             print data_file
