@@ -11,6 +11,7 @@ class MLTrainer(object):
         self.input_columns = input_columns
         self.output_column = output_column
         self.models = {}
+        self.all_data = None
         return
 
     def load_data_files(self,query=None):
@@ -28,8 +29,8 @@ class MLTrainer(object):
 
     def train_model(self, model_name, model_obj):
         self.models[model_name] = model_obj
-        self.models[model_name].fit(self.all_data.loc[:,self.input_columns],
-                                    self.all_data.loc[:,self.output_column])
+        self.models[model_name].fit(self.all_data.loc[:, self.input_columns],
+                                    self.all_data.loc[:, self.output_column])
         return
     
     def cross_validate_model(self, model_name, model_obj, n_folds):
@@ -46,20 +47,21 @@ class MLTrainer(object):
             model_obj.fit(self.all_data.ix[train_indices, self.input_columns],
                           self.all_data.ix[train_indices, self.output_column])
             predictions[test_indices] = model_obj.predict(self.all_data.ix[test_indices, self.input_columns])
+            self.models[model_name] = model_obj
+            self.show_feature_importance()
         return predictions
 
-    def show_feature_importances(self):
+    def show_feature_importance(self, num_rankings=10):
         for model_name, model_obj in self.models.iteritems():
             if hasattr(model_obj,"feature_importances_"):
                 scores = model_obj.feature_importances_
                 rankings = np.argsort(scores)[::-1]
                 print model_name
-                for i,r in enumerate(rankings):
+                for i,r in enumerate(rankings[0:num_rankings]):
                     print "{0:d}. {1}: {2:0.3f}".format(i,self.input_columns[r],scores[r])
     
     def save_models(self, model_path):
         for model_name, model_obj in self.models.iteritems():
-            model_file = open(model_path + model_name + ".json","w")
-            pickle.dump(model_obj, model_file)
-            model_file.close()
+            with open(model_path + model_name + ".pkl", "w") as model_file:
+                pickle.dump(model_obj, model_file)
         return

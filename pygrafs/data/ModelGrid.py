@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 import numpy as np
 from netCDF4 import Dataset, num2date
-
+from scipy.ndimage.filters import convolve, maximum_filter, minimum_filter, median_filter
 
 class ModelGrid(object):
     """
@@ -101,6 +101,7 @@ class ModelGrid(object):
                 end_y = 0
             subset_data = self.file_obj.variables[variable][start_time:end_time,
                                                             start_y:end_y, start_x:end_x]
+            subset_data[subset_data < -30000] = 0
             #print variable, hasattr(subset_data,"mask")
             #print subset_data.max(), subset_data.min()
             subset_obj = ModelGridSubset(variable,subset_data,
@@ -165,6 +166,21 @@ class ModelGridSubset(object):
         i, j = self.coordinate_to_index(x_point, y_point)
         return self.data[t, i, j]
 
+    def get_neighbor_grid_stats(self, time_index, neighbor_radius=1, stats=['mean','min','max']):
+        data = self.data[time_index]
+        window_size = 1 + 2 * neighbor_radius
+        window = np.ones((window_size,window_size),dtype=int)
+        stat_arrays = np.zeros((len(stats),data.shape[0],data.shape[1]))
+        for s, stat in enumerate(stats):
+            if stat == 'mean':
+                stat_arrays[s] = convolve(data, window, mode='constant') / float(window.size)
+            elif stat == 'min':
+                stat_arrays[s] = minimum_filter(data, footprint=window, mode='constant')
+            elif stat == 'max':
+                stat_arrays[s] = maximum_filter(data, footprint=window, mode='constant')
+        return stat_arrays
+        
+    
     def get_neighbor_stats(self, time, y_point, x_point, indices=False, neighbor_radius=1, stats=['mean', 'min', 'max', 'gradient']):
         """
         Calculate statistics about the immediate neighborhood of a grid point.
@@ -184,7 +200,8 @@ class ModelGridSubset(object):
         else:
             t = self.get_time_index(time)
             i, j = self.coordinate_to_index(x_point, y_point)
-        values = self.data[t,i - neighbor_radius:i + neighbor_radius + 1, j - neighbor_radius: j + neighbor_radius]
+        values = self.data[t,np.maximum(i - neighbor_radius, 0):np.minimum(i + neighbor_radius + 1, self.data.shape[1]),
+                             np.maximum(j - neighbor_radius, 0):np.minimum(j + neighbor_radius + 1, self.data.shape[2])]
         stat_values = np.zeros(len(stats))
         for s, stat in enumerate(stats):
             if stat in ['mean', 'min', 'max', 'std', 'var']:
