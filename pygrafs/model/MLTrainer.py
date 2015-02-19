@@ -2,6 +2,7 @@ from glob import glob
 import cPickle as pickle
 import numpy as np
 import pandas as pd
+import sys
 from collections import OrderedDict
 
 
@@ -38,7 +39,8 @@ class MLTrainer(object):
         data_files = sorted(glob(self.data_path + "*" + exp + "*" + self.data_format))
         data_file_list = []
         for data_file in data_files:
-            print data_file
+            sys.stdout.write("\rLoad File: " + data_file)
+            sys.stdout.flush()
             if self.data_format == "csv":
                 data_file_list.append(pd.read_csv(data_file))
         self.all_data = data_file_list[0].append(data_file_list[1:],ignore_index=True)

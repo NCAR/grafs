@@ -13,7 +13,9 @@ def main():
     parser.add_argument("--eval", "-e", action='store_true', help="Evaluate models on test data.")
     parser.add_argument("--fore", "-f", action='store_true', help="Create forecast from trained models.")
     args = parser.parse_args()
-    config = Config(args.config)
+    required_attributes = ['data_path', 'data_format', 'input_columns', 'output_column',
+                           'model_names', 'model_objects']
+    config = Config(args.config, required_attributes=required_attributes)
     if args.train:
         train_models(config)
     if args.cross:
@@ -29,13 +31,14 @@ def train_models(config):
                     config.input_columns,
                     config.output_column)
     if hasattr(config,'query'):
-        mlt.load_data_files(config.query)
+        mlt.load_data_files(exp=config.expression, query=config.query)
     else:
         mlt.load_data_files()
     for m, model_name in enumerate(config.model_names):
+        print(model_name)
         mlt.train_model(model_name,config.model_objects[m])
-    mlt.show_feature_importances()
     mlt.save_models(config.ml_model_path)
+    mlt.show_feature_importance()
     return
 
 
@@ -45,7 +48,7 @@ def cross_validate_models(config):
                     config.input_columns,
                     config.output_column)
     if hasattr(config,'query'):
-        mlt.load_data_files(config.query)
+        mlt.load_data_files(query=config.query)
     else:
         mlt.load_data_files()
     all_predictions = {}
@@ -74,15 +77,9 @@ def forecast_models(config):
                        config.output_column)
     mlf.load_data(exp=config.expression)
     for model_name in config.model_names:
-        mlf.load_model(config.model_path + model_name + ".pkl")
-    predictions = mlf.make_predictions()
-    pred_frame = pd.DataFrame(predictions)
-    if config.output_column in mlf.all_data.columns:
-        pred_frame['obs'] = mlf.all_data[config.output_column]
-    for col in config.pred_columns:
-        pred_frame[col] = mlf.all_data[col]
-    pred_frame.to_csv(config.pred_file)
-    return pred_frame
+        mlf.load_model(config.ml_model_path + model_name + ".pkl")
+    mlf.make_predictions(config.pred_columns, config.pred_path, config.pred_format)
+    return
 
 if __name__ == "__main__":
     main()
