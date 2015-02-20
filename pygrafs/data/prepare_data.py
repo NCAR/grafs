@@ -81,7 +81,7 @@ def load_obs(config, dates):
         obs_files = sorted(glob(config.obs_dir + date.strftime("/%Y%m%d/*.nc")))
         obs_total = 0
         if len(obs_files) > 0:
-            all_obs[date] = ObsSite(obs_files[0])
+            all_obs[date] = ObsSite(obs_files[0], meta_file=config.site_list_file)
             all_obs[date].load_data(config.obs_var)
             all_obs[date].close()
     return all_obs
@@ -162,6 +162,7 @@ def match_model_obs(model_grids, all_obs, config):
                                 merged_data_step[var + "_f_" + stat] = neighbor_stats[:,s]
                         merged_data_obs = pd.merge(merged_data_step,all_obs[vt.date()].data[config.obs_var],
                                                    how="inner", on=['station', 'date'])
+                        merged_data_obs['add_diff'] = merged_data_obs[config.obs_var + "_f"] - merged_data_obs[config.obs_var]
                         if merged_data is None:
                             merged_data = merged_data_obs
                         else:

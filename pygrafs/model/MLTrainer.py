@@ -9,22 +9,19 @@ from collections import OrderedDict
 class MLTrainer(object):
     """
     Handles loading of data files and training machine learning models on the data.
+    :param data_path: path to data files.
+    :param data_format: format of data files. Csv is the only currently supported format.
+    :param input_columns: list of column names being input to model
+    :param output_column:
+    :return:
     """
-    def __init__(self, data_path, data_format, input_columns, output_column):
-        """
-        Initializes MLTrainer object.
-
-        :param data_path: path to data files.
-        :param data_format: format of data files. Csv is the only currently supported format.
-        :param input_columns: list of column names being input to model
-        :param output_column:
-        :return:
-        """
+    def __init__(self, data_path, data_format, input_columns, output_column, diff_column=None):
         self.data_path = data_path
         self.data_format = data_format
         self.input_columns = input_columns
         self.output_column = output_column
         self.models = OrderedDict()
+        self.diff_column = diff_column
         self.all_data = None
         return
 
@@ -32,8 +29,8 @@ class MLTrainer(object):
         """
         Loads data files from the specified directory.
 
-        :param exp:
-        :param query:
+        :param exp: Expression specifying which file names are are loaded.
+        :param query: Pandas query string to filter data by column values
         :return:
         """
         data_files = sorted(glob(self.data_path + "*" + exp + "*" + self.data_format))
@@ -45,7 +42,8 @@ class MLTrainer(object):
                 data_file_list.append(pd.read_csv(data_file))
         self.all_data = data_file_list[0].append(data_file_list[1:],ignore_index=True)
         if query is not None:
-            self.all_data = self.all_data.query(query)
+            for q in query:
+                self.all_data = self.all_data.query(q)
             self.all_data.reset_index(inplace=True)
         self.all_data = self.all_data.replace(np.nan, 0)
 
@@ -65,10 +63,11 @@ class MLTrainer(object):
             test_indices = random_indices[split_start:split_end]
             train_indices = np.concatenate((random_indices[:split_start], random_indices[split_end:]))
             print "Fold {0:d} Train {1:d}, Test {2:d}".format(f, train_indices.shape[0], test_indices.shape[0])
-            print self.input_columns
             model_obj.fit(self.all_data.ix[train_indices, self.input_columns],
                           self.all_data.ix[train_indices, self.output_column])
             predictions[test_indices] = model_obj.predict(self.all_data.ix[test_indices, self.input_columns])
+            if self.diff_column is not None:
+                predictions[test_indices] = self.all_data[self.diff_column].values[test_indices] - predictions[test_indices]
             self.models[model_name] = model_obj
             self.show_feature_importance()
         return predictions

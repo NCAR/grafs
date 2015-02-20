@@ -28,7 +28,7 @@ def calc_scores_by_model(forecast_data, config):
     scores = pd.DataFrame(index=config.model_names, columns=config.score_names)
     for m, model in enumerate(config.model_names):
         for s, score in enumerate(config.score_names):
-            scores.ix[model, score] = config.score_functions[s](forecast_data[model], forecast_data['obs'])
+            scores.ix[model, score] = config.score_functions[s](forecast_data[model], forecast_data[config.obs_var])
     return scores
 
 
@@ -41,7 +41,7 @@ def calc_scores_by_valid_hour(forecast_data, config):
             for hour in valid_hours:
                 vh_indices = forecast_data[config.valid_hour_var] == hour
                 scores[score].ix[model, hour] = config.score_functions[s](forecast_data.loc[vh_indices, model],
-                                                                          forecast_data.loc[vh_indices, 'obs'])
+                                                                          forecast_data.loc[vh_indices, config.obs_var])
     return scores
 
 
@@ -49,7 +49,13 @@ def plot_scores_by_valid_hour(scores, config):
     for score_name, score_data in scores.iteritems():
         plt.figure(figsize=(6, 4))
         for model in score_data.index:
-            plt.plot(score_data.columns.values, score_data.ix[model, :], label=model)
+            if model in ["av_dswrf_sfc_f","add_diff"]:
+                model_label = "NAM"
+            else:
+                model_label = model
+            plt.plot(score_data.columns.values, score_data.ix[model, :], label=model_label)
+        plt.xlim(score_data.columns.values.min(),score_data.columns.values.max())
+        plt.xticks(score_data.columns.values)
         plt.xlabel("Valid Hour (PST)")
         plt.ylabel(score_name + " ({0})".format(config.units))
         plt.title(score_name + " Hourly Comparison")

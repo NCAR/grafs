@@ -43,10 +43,15 @@ def train_models(config):
 
 
 def cross_validate_models(config):
+    if hasattr(config,'diff_column'):
+        diff_column = config.diff_column
+    else:
+        diff_column = None
     mlt = MLTrainer(config.data_path,
                     config.data_format,
                     config.input_columns,
-                    config.output_column)
+                    config.output_column,
+                    diff_column=diff_column)
     if hasattr(config,'query'):
         mlt.load_data_files(query=config.query)
     else:

@@ -1,8 +1,7 @@
 from netCDF4 import Dataset,num2date
 import numpy as np
 import pandas as pd
-from pvlib.clearsky import clearsky_ineichen
-from pvlib.location import Location
+
 
 
 def main():
@@ -17,7 +16,7 @@ def main():
 class ObsSite(object):
     def __init__(self, filename,
                  file_format='nc',
-                 meta_file="/d2/dicast/nt/static_data/site_list/int_obs_sites.asc",
+                 meta_file="/d2/dgagne/static_data/site_list/int_obs_sites.asc",
                  meta_delimiter=';',
                  time_var="time_nominal"):
         self.filename = filename
@@ -54,6 +53,7 @@ class ObsSite(object):
         """
         all_data = self.file_obj.variables[variable][:]
         valid_rows = np.unique(np.nonzero(all_data < all_data.max())[0])
+        print valid_rows.shape, all_data.max(), all_data.min()
         data = np.ma.array(all_data[valid_rows],
                                           mask=all_data[valid_rows] == all_data.max())
         stations = self.file_obj.variables['site_list'][valid_rows]
