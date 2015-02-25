@@ -16,10 +16,11 @@ def main():
     parser.add_argument("--obs",
                         default="/d2/dicast/nt/der_data/obs/int_obs/",
                         help="Path to observation files")
-    parser.add_argument("--out", help="Path where figures are written.")
+    parser.add_argument("--out", default="/d2/dgagne/obs_figures/",help="Path where figures are written.")
     args = parser.parse_args()
     obs_dates = pd.date_range(args.start, args.end, freq="H")
     all_data = load_data(obs_dates, args.var, args.obs)
+    plot_obs_maps(all_data, obs_dates, args.var, args.out)
     print all_data
     return
 
@@ -41,7 +42,35 @@ def load_data(dates, variable, path):
     #all_data = all_data.ix[(all_data['date'] < dates[0]) & (all_data['date'] > dates[-1]), :]
     return all_data
 
-def plot_obs_maps():
+def plot_obs_maps(all_data, obs_dates, variable, out_path):
+    plt.figure(figsize=(10, 6))
+    lon_bounds = (all_data['lon'].min() - 1.0, all_data['lon'].max() + 1.0)
+    lat_bounds = (all_data['lat'].min() - 1.0, all_data['lat'].max() + 1.0)
+    bmap = Basemap(projection="cyl",
+                   resolution='l',
+                   llcrnrlon=lon_bounds[0],
+                   llcrnrlat=lat_bounds[0],
+                   urcrnrlat=lat_bounds[1],
+                   urcrnrlon=lon_bounds[1])
+    bmap.drawcoastlines()
+    bmap.drawcountries()
+    bmap.drawstates()
+    title_obj = plt.title("")
+    for d, date in enumerate(obs_dates):
+        print "Plotting ", date
+        di = all_data['date'] == date
+        scatter = plt.scatter(all_data.loc[di,'lon'],
+                              all_data.loc[di,'lat'],
+                              20,
+                              all_data.loc[di,variable],
+                              cmap="hot",
+                              vmin=0,
+                              vmax=800)
+        if d == 0:
+            plt.colorbar()
+        plt.setp(title_obj, text="{0} Observations {1}".format(variable, date.strftime("%Y-%m-%d %H:%M")))
+        plt.savefig(out_path + "{0}_obs_{1}.png".format(variable, date.strftime("%Y%m%d%H%M")),dpi=200, bbox_inches="tight")
+        scatter.remove()
     return
 
 
