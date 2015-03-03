@@ -1,7 +1,9 @@
 import unittest
-from datetime import datetime,timedelta
+from datetime import datetime
+
 import numpy as np
-from pygrafs.data.ModelGrid import ModelGrid
+
+from pygrafs.libs.data.ModelGrid import ModelGrid
 
 
 class TestDataModelGrid(unittest.TestCase):

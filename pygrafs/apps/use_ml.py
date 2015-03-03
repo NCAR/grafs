@@ -1,8 +1,10 @@
 import argparse
+
 import pandas as pd
-from pygrafs.util.Config import Config
-from MLTrainer import MLTrainer
-from MLForecaster import MLForecaster
+
+from pygrafs.libs.model.MLTrainer import MLTrainer
+from pygrafs.libs.model.MLForecaster import MLForecaster
+from pygrafs.libs.util import Config
 
 
 def main():

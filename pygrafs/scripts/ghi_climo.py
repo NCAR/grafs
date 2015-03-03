@@ -1,16 +1,14 @@
-from multiprocessing import Pool
-
 import os
-from scipy.io import loadmat
 from netCDF4 import Dataset, date2num
+import sys
+
+from scipy.io import loadmat
 import numpy as np
 import pandas as pd
-import sys
-from time import sleep
-from pygrafs.data.ModelGrid import ModelGrid
-from pygrafs.util.pool_manager import pool_manager
 from pvlib.clearsky import clearsky_ineichen
 from pvlib.location import Location
+
+from pygrafs.libs.data.ModelGrid import ModelGrid
 
 
 def main():

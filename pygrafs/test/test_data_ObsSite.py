@@ -1,5 +1,7 @@
 import unittest
-from pygrafs.data.ObsSite import ObsSite
+
+from pygrafs.libs.data import ObsSite
+
 
 class TestDataObsSite(unittest.TestCase):
     def setUp(self):

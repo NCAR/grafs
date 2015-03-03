@@ -1,7 +1,10 @@
-import pandas as pd
 import argparse
-from pygrafs.util.Config import Config
+
+import pandas as pd
 import matplotlib.pyplot as plt
+
+from pygrafs.libs.util import Config
+
 
 def main():
     parser = argparse.ArgumentParser(description="Calculate verification statistics and plot them.")
