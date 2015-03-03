@@ -6,5 +6,5 @@ if __name__ == "__main__":
       description="Gridded Atmospheric Forecast System",
       author="David John Gagne",
       author_email="dgagne@ucar.edu",
-      packages=["pygrafs", "pygrafs.data", "pygrafs.model", "pygrafs.evaluation","pygrafs.util", "pygrafs.plotting"],
+      packages=["pygrafs", "pygrafs.libs", "pygrafs.apps","pygrafs.scripts", "pygrafs.scripts.plotting"],
       install_requires=["numpy>=1.8", "pandas>=0.15", "scipy", "matplotlib", "netCDF4", "scikit-learn>=0.15"])
