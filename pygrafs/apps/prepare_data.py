@@ -1,5 +1,5 @@
 from multiprocessing import Pool
-from pygrafs.util.pool_manager import pool_manager
+from pygrafs.libs.util.pool_manager import pool_manager
 from glob import glob
 import argparse
 from datetime import datetime,timedelta
@@ -8,9 +8,9 @@ import sys
 import numpy as np
 import pandas as pd
 
-from ModelGrid import ModelGrid
-from ObsSite import ObsSite
-from pygrafs.util.Config import Config
+from pygrafs.libs.data.ModelGrid import ModelGrid
+from pygrafs.libs.data.ObsSite import ObsSite
+from pygrafs.libs.util.Config import Config
 
 
 def main():

@@ -1,6 +1,6 @@
 import pandas as pd
 import argparse
-from pygrafs.util.Config import Config
+from pygrafs.libs.util.Config import Config
 import matplotlib.pyplot as plt
 
 def main():
