@@ -46,6 +46,7 @@ def plot_obs_maps(all_data, obs_dates, variable, out_path):
     plt.figure(figsize=(10, 6))
     lon_bounds = (all_data['lon'].min() - 1.0, all_data['lon'].max() + 1.0)
     lat_bounds = (all_data['lat'].min() - 1.0, all_data['lat'].max() + 1.0)
+    print lon_bounds, lat_bounds
     bmap = Basemap(projection="cyl",
                    resolution='l',
                    llcrnrlon=lon_bounds[0],

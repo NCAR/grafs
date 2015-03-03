@@ -4,7 +4,7 @@ from pygrafs.util.Config import Config
 import matplotlib.pyplot as plt
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Calculate verification statistics and plot them.")
     parser.add_argument("config", help="Name of config file")
     args = parser.parse_args()
     required_attributes = ['forecast_file', 'score_names', 'model_names', 'score_functions', 'valid_hour_var']
@@ -21,10 +21,23 @@ def main():
 
 
 def load_forecast_file(filename):
+    """
+    Load forecast output from CSV file.
+
+    :param filename: Full path and name of file.
+    :return: A pandas DataFrame containing the predictions, observations, and metadata.
+    """
     return pd.read_csv(filename)
 
 
 def calc_scores_by_model(forecast_data, config):
+    """
+    Calculate the score functions specified in the config file.
+
+    :param forecast_data:
+    :param config:
+    :return: DateFrame with scores organized by model.
+    """
     scores = pd.DataFrame(index=config.model_names, columns=config.score_names)
     for m, model in enumerate(config.model_names):
         for s, score in enumerate(config.score_names):
@@ -33,6 +46,13 @@ def calc_scores_by_model(forecast_data, config):
 
 
 def calc_scores_by_valid_hour(forecast_data, config):
+    """
+    Calculates scores for all unique valid hours in the prediction file.
+
+    :param forecast_data: Input prediction DataFrame
+    :param config: Config object with required parameters
+    :return: dict of DataFrames containing each score.
+    """
     scores = {}
     valid_hours = sorted(forecast_data[config.valid_hour_var].unique())
     for s, score in enumerate(config.score_names):
@@ -46,6 +66,12 @@ def calc_scores_by_valid_hour(forecast_data, config):
 
 
 def plot_scores_by_valid_hour(scores, config):
+    """
+    Create line plots of the scores of each model by valid hour.
+
+    :param scores: DataFrame containing the valid hour scores.
+    :param config: Config object
+    """
     for score_name, score_data in scores.iteritems():
         plt.figure(figsize=(6, 4))
         for model in score_data.index:

@@ -6,7 +6,7 @@ from MLForecaster import MLForecaster
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Use machine learning models on processed data.")
     parser.add_argument('config',help="Config file")
     parser.add_argument("--train", "-t", action='store_true', help="Train models.")
     parser.add_argument("--cross", "-c", action='store_true', help="Cross-validate models.")
@@ -26,6 +26,11 @@ def main():
 
 
 def train_models(config):
+    """
+    Train a set of machine learning models on the input data.
+
+    :param config: Config object containing parameters for data and models.
+    """
     mlt = MLTrainer(config.data_path,
                     config.data_format,
                     config.input_columns,
@@ -39,10 +44,15 @@ def train_models(config):
         mlt.train_model(model_name,config.model_objects[m])
     mlt.save_models(config.ml_model_path)
     mlt.show_feature_importance()
-    return
 
 
 def cross_validate_models(config):
+    """
+    Perform a cross-validation procedure to evaluate model parameter settings.
+
+    :param config: Config object containing model parameter information.
+    :return:
+    """
     if hasattr(config,'diff_column'):
         diff_column = config.diff_column
     else:

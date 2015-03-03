@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 
 import numpy as np
 from netCDF4 import Dataset, num2date
-from scipy.ndimage.filters import convolve, maximum_filter, minimum_filter, median_filter
+from scipy.ndimage.filters import convolve, maximum_filter, minimum_filter, \
+    median_filter, correlate, gaussian_gradient_magnitude
 
 
 class ModelGrid(object):
@@ -158,7 +159,11 @@ class ModelGridSubset(object):
         """
         t = self.get_time_index(time)
         i, j = self.coordinate_to_index(x_point, y_point)
-        return self.data[t, i, j]
+        if ~(np.isnan(i) | np.isnan(j)):
+            value = self.data[t, i, j]
+        else:
+            value = np.nan
+        return value
 
     def get_neighbor_grid_stats(self, time_index, neighbor_radius=1, stats=['mean', 'min', 'max']):
         """
@@ -171,15 +176,21 @@ class ModelGridSubset(object):
         """
         data = self.data[time_index]
         window_size = 1 + 2 * neighbor_radius
-        window = np.ones((window_size,window_size),dtype=int)
+        window = np.ones((window_size, window_size), dtype=int)
         stat_arrays = np.zeros((len(stats),data.shape[0],data.shape[1]))
         for s, stat in enumerate(stats):
             if stat == 'mean':
-                stat_arrays[s] = convolve(data, window, mode='constant') / float(window.size)
+                stat_arrays[s] = convolve(data, window, mode='reflect') / float(window.size)
             elif stat == 'min':
-                stat_arrays[s] = minimum_filter(data, footprint=window, mode='constant')
+                stat_arrays[s] = minimum_filter(data, footprint=window, mode='reflect')
             elif stat == 'max':
-                stat_arrays[s] = maximum_filter(data, footprint=window, mode='constant')
+                stat_arrays[s] = maximum_filter(data, footprint=window, mode='reflect')
+            elif stat == 'correlate':
+                stat_arrays[s] = correlate(data, window, mode='reflect')
+            elif stat == 'median':
+                stat_arrays[s] = median_filter(data, footprint=window, mode='reflect')
+            elif stat == 'gradient':
+                stat_arrays[s] = gaussian_gradient_magnitude(data, sigma=neighbor_radius, mode='reflect')
         return stat_arrays
         
     
@@ -202,20 +213,23 @@ class ModelGridSubset(object):
         else:
             t = self.get_time_index(time)
             i, j = self.coordinate_to_index(x_point, y_point)
-        values = self.data[t,np.maximum(i - neighbor_radius, 0):np.minimum(i + neighbor_radius + 1, self.data.shape[1]),
-                             np.maximum(j - neighbor_radius, 0):np.minimum(j + neighbor_radius + 1, self.data.shape[2])]
-        stat_values = np.zeros(len(stats))
-        for s, stat in enumerate(stats):
-            if stat in ['mean', 'min', 'max', 'std', 'var']:
-                stat_values[s] = getattr(values, stat)()
-            elif stat in ['median']:
-                stat_values[s] = np.median(stat)
-            elif stat in ['gradient']:
-                grad_x, grad_y = np.gradient(values)
-                stat_values[s] = np.sqrt(grad_x[neighbor_radius, neighbor_radius] ** 2
-                                         + grad_y[neighbor_radius, neighbor_radius] ** 2)
-            else:
-                stat[s] = np.nan
+        if ~(np.isnan(i) | np.isnan(j)):
+            values = self.data[t,np.maximum(i - neighbor_radius, 0):np.minimum(i + neighbor_radius + 1, self.data.shape[1]),
+                                 np.maximum(j - neighbor_radius, 0):np.minimum(j + neighbor_radius + 1, self.data.shape[2])]
+            stat_values = np.zeros(len(stats))
+            for s, stat in enumerate(stats):
+                if stat in ['mean', 'min', 'max', 'std', 'var']:
+                    stat_values[s] = getattr(values, stat)()
+                elif stat in ['median']:
+                    stat_values[s] = np.median(stat)
+                elif stat in ['gradient']:
+                    grad_x, grad_y = np.gradient(values)
+                    stat_values[s] = np.sqrt(grad_x[neighbor_radius, neighbor_radius] ** 2
+                                             + grad_y[neighbor_radius, neighbor_radius] ** 2)
+                else:
+                    stat_values[s] = np.nan
+        else:
+            stat_values = np.ones(len(stats)) * np.nan
         return stat_values
 
     def get_time_index(self, time):
@@ -273,6 +287,10 @@ class ModelGridSubset(object):
         :param y: y-coordinate of data (float)
         :returns: the row and column indices nearest to the given coordinates.
         """
-        dist = (self.x - x) ** 2 + (self.y - y) ** 2
-        i, j = np.unravel_index(np.argmin(dist), self.x.shape)
+        if (x >= self.x.min()) and (x <= self.x.max()) and (y >= self.y.min()) and (y <= self.y.max()):
+            dist = (self.x - x) ** 2 + (self.y - y) ** 2
+            i, j = np.unravel_index(np.argmin(dist), self.x.shape)
+        else:
+            i = np.nan
+            j = np.nan
         return i, j

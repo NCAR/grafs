@@ -12,19 +12,19 @@ from ModelGrid import ModelGrid
 from ObsSite import ObsSite
 from pygrafs.util.Config import Config
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("config",help="Configuration file")
     parser.add_argument("--proc","-p",default=1,type=int,help="Number of processors")
     args = parser.parse_args()
     config = Config(args.config)
-    start_date = datetime.strptime(config.start_date,config.date_format)
-    end_date = datetime.strptime(config.end_date,config.date_format)
+    start_date = datetime.strptime(config.start_date, config.date_format)
+    end_date = datetime.strptime(config.end_date, config.date_format)
     curr_date = start_date
-    obs_total = 0
     if args.proc == 1:
         while curr_date <= end_date:
-            print curr_date
+            print(curr_date)
             create_forecast_data(config, curr_date)
             curr_date += timedelta(days=1) 
     if args.proc > 1:
@@ -79,11 +79,13 @@ def load_obs(config, dates):
     all_obs = {}
     for date in dates:
         obs_files = sorted(glob(config.obs_dir + date.strftime("/%Y%m%d/*.nc")))
-        obs_total = 0
         if len(obs_files) > 0:
             all_obs[date] = ObsSite(obs_files[0], meta_file=config.site_list_file)
             all_obs[date].load_data(config.obs_var)
+            all_obs[date].filter_by_location(config.obs_var, config.x_range, config.y_range)
+            print("Num obs: {0:d}".format(all_obs[date].data[config.obs_var].shape[0]))
             all_obs[date].close()
+
     return all_obs
 
 
@@ -131,6 +133,7 @@ def match_model_obs(model_grids, all_obs, config):
     :param config: Config object with information about how model and observation data should be matched.
     """
     if config.match_method == "nearest":
+        # Loop through each model run and associated grid and match them with available observations.
         for model_name, model_grid in model_grids.iteritems():
             merged_data = None
             model_vars = sorted(model_grid.keys())
@@ -147,6 +150,7 @@ def match_model_obs(model_grids, all_obs, config):
                     for mt in match_time_indices:
                         vt = model_grid[model_vars[0]].times[mt]
                         merged_data_step = pd.DataFrame({'station':all_obs[obs_date].station_data.index})
+                        # Create metadata columns
                         merged_data_step['date'] = vt
                         merged_data_step['valid_hour_utc'] = vt.hour
                         merged_data_step['valid_hour_pst'] = (vt.hour - 8) % 24
@@ -156,11 +160,18 @@ def match_model_obs(model_grids, all_obs, config):
                         merged_data_step['row'] = station_indices[:, 0]
                         merged_data_step['col'] = station_indices[:, 1]
                         for var in model_vars:
-                            merged_data_step[var + "_f"] = model_grid[var].data[mt, station_indices[:,0],station_indices[:,1]]
-                            neighbor_stats = np.array([model_grid[var].get_neighbor_stats(mt, station_indices[i, 0], station_indices[i, 1], indices=True, stats=config.stats) for i in range(station_indices.shape[0])])
+                            # Extract grid point model values
+                            merged_data_step[var + "_f"] = model_grid[var].data[mt,
+                                                                                station_indices[:, 0],
+                                                                                station_indices[:, 1]]
+                            # Calculate neighborhood statistics from data and add it to data frame
+                            neighbor_stats = model_grid[var].get_neighbor_grid_stats(mt, stats=config.stats)
                             for s, stat in enumerate(config.stats):
-                                merged_data_step[var + "_f_" + stat] = neighbor_stats[:,s]
-                        merged_data_obs = pd.merge(merged_data_step,all_obs[vt.date()].data[config.obs_var],
+                                merged_data_step[var + "_f_" + stat] = neighbor_stats[s,
+                                                                                      station_indices[:, 0],
+                                                                                      station_indices[:, 1]]
+                        # Match model output instances with observations
+                        merged_data_obs = pd.merge(merged_data_step, all_obs[vt.date()].data[config.obs_var],
                                                    how="inner", on=['station', 'date'])
                         merged_data_obs['add_diff'] = merged_data_obs[config.obs_var + "_f"] - merged_data_obs[config.obs_var]
                         if merged_data is None:
@@ -214,17 +225,18 @@ def merge_model_forecasts(model_grids, config):
                 merged_data_step.loc[:, var + "_f"] = model_grid[var].data[time_step].flatten()
                 stat_arrays = model_grid[var].get_neighbor_grid_stats(time_step, stats=config.stats)
                 for s, stat in enumerate(config.stats):
-                    merged_data_step.loc[:,var + "_f_" + stat] = stat_arrays[s].flatten()
+                    merged_data_step.loc[:, var + "_f_" + stat] = stat_arrays[s].flatten()
             if merged_data is None:
                 merged_data = merged_data_step
             else:
                 merged_data = merged_data.append(merged_data_step, ignore_index=True)
         merged_data = filter_data(merged_data, config.queries)
         if merged_data is not None:
-            outfile = config.data_dir + model_name.split("/")[-1].replace(".nc",".csv")
+            outfile = config.data_dir + model_name.split("/")[-1].replace(".nc", ".csv")
             print("Writing " + outfile)
             merged_data.to_csv(outfile, float_format="%0.3f", index_label="record")
     return
+
 
 def filter_data(data, queries):
     """
