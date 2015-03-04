@@ -1,6 +1,10 @@
 import argparse
+<<<<<<< HEAD:pygrafs/apps/evaluate_forecasts.py
 
 import pandas as pd
+=======
+from pygrafs.libs.util.Config import Config
+>>>>>>> ral:pygrafs/apps/evaluate_forecasts.py
 import matplotlib.pyplot as plt
 
 from pygrafs.libs.util import Config

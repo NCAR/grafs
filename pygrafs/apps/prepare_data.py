@@ -1,4 +1,8 @@
 from multiprocessing import Pool
+<<<<<<< HEAD:pygrafs/apps/prepare_data.py
+=======
+from pygrafs.libs.util.pool_manager import pool_manager
+>>>>>>> ral:pygrafs/apps/prepare_data.py
 from glob import glob
 import argparse
 from datetime import datetime,timedelta
@@ -6,10 +10,16 @@ from datetime import datetime,timedelta
 import numpy as np
 import pandas as pd
 
+<<<<<<< HEAD:pygrafs/apps/prepare_data.py
 from pygrafs.libs.util import Config
 from pygrafs.libs.util.pool_manager import pool_manager
 from pygrafs.libs.data.ModelGrid import ModelGrid
 from pygrafs.libs.data.ObsSite import ObsSite
+=======
+from pygrafs.libs.data.ModelGrid import ModelGrid
+from pygrafs.libs.data.ObsSite import ObsSite
+from pygrafs.libs.util.Config import Config
+>>>>>>> ral:pygrafs/apps/prepare_data.py
 
 
 def main():
