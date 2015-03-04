@@ -1,16 +1,9 @@
 import argparse
 
 import pandas as pd
-<<<<<<< HEAD:pygrafs/apps/use_ml.py
-
-from pygrafs.libs.model.MLTrainer import MLTrainer
-from pygrafs.libs.model.MLForecaster import MLForecaster
-from pygrafs.libs.util import Config
-=======
 from pygrafs.libs.util.Config import Config
 from pygrafs.libs.model.MLTrainer import MLTrainer
 from pygrafs.libs.model.MLForecaster import MLForecaster
->>>>>>> ral:pygrafs/apps/use_ml.py
 
 
 def main():
