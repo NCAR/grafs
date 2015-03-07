@@ -38,6 +38,9 @@ class MLForecaster(object):
             if self.data_format == "csv":
                 self.all_forecasts[forecast_file] = pd.read_csv(forecast_file)
                 self.all_forecasts[forecast_file].replace(np.nan, 0)
+            elif self.data_format == "hdf":
+                self.all_forecasts[forecast_file] = pd.read_hdf(forecast_file, "data")
+                self.all_forecasts[forecast_file].replace(np.nan, 0)
 
     def load_model(self, model_file):
         """
@@ -68,6 +71,9 @@ class MLForecaster(object):
             if pred_format.lower() == "csv":
                 filename = pred_path + forecast_file.split("/")[-1]
                 predictions.to_csv(filename, index=False, float_format="%0.3f")
+            elif pred_format.lower() == "hdf":
+                filename = pred_path + forecast_file.split("/")[-1]
+                predictions.to_hdf(filename, "predictions", mode="w", complevel=4, complib="zlib")
             elif pred_format.lower() in ["nc", "netcdf"]:
                 filename = pred_path + forecast_file.split("/")[-1].replace(".csv", ".nc")
                 output = Dataset(filename, mode="w")

@@ -41,7 +41,9 @@ class MLTrainer(object):
             sys.stdout.flush()
             if self.data_format == "csv":
                 data_file_list.append(pd.read_csv(data_file))
-        self.all_data = data_file_list[0].append(data_file_list[1:],ignore_index=True)
+            elif self.data_format == "hdf":
+                data_file_list.append(pd.read_hdf(data_file, "data"))
+        self.all_data = data_file_list[0].append(data_file_list[1:], ignore_index=True)
         if "level_0" in self.all_data.columns:
             self.all_data.drop("level_0", axis=1, inplace=True)
         if query is not None:

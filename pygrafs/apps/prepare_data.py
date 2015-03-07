@@ -2,6 +2,7 @@ from multiprocessing import Pool
 from pygrafs.libs.util.pool_manager import pool_manager
 from glob import glob
 import argparse
+import sys
 from datetime import datetime,timedelta
 
 import numpy as np
@@ -30,7 +31,7 @@ def main():
         pool = Pool(args.proc)
         procs = {}
         try:
-            while curr_date < end_date:
+            while curr_date <= end_date:
                 procs[curr_date] = pool.apply_async(create_forecast_data, (config, curr_date))
                 curr_date += timedelta(days=1)
             pool_manager(procs, False)
@@ -179,11 +180,14 @@ def match_model_obs(model_grids, all_obs, config):
                             merged_data = merged_data.append(merged_data_obs, ignore_index=True)
             merged_data = filter_data(merged_data, config.queries)
             if merged_data is not None:
-                outfile = config.data_dir + model_name.split("/")[-1].strip(".nc") + ".csv"
+                outfile = config.data_dir + model_name.split("/")[-1].replace(".nc", "." + config.out_format)
                 print("Writing " + outfile)
-                merged_data.to_csv(outfile,
+                if config.out_format == "csv":
+                    merged_data.to_csv(outfile,
                                    float_format="%0.3f",
                                    index_label="record")
+                elif config.out_format == "hdf":
+                    merged_data.to_hdf(outfile, "data", mode="w", complevel=4, complib="zlib")
     return
 
 
@@ -201,13 +205,14 @@ def merge_model_forecasts(model_grids, config):
         columns = ['date', 'valid_hour_utc', 'valid_hour_pst', 'forecast_hour', 
                     'day_of_year', 'sine_doy', 'row', 'col', 'lon', 'lat']
         for v in model_vars:
-            #columns.append(v + "_f")
             columns.extend([v + '_f'] + [v + '_f_' + stat for stat in config.stats])
-        date_steps = np.array([t.date() for t in model_grid[model_vars[0]].times])
         time_indices = model_grid[model_vars[0]].valid_time_indices
         valid_times = model_grid[model_vars[0]].valid_times
         data_indices = np.indices(model_grid[model_vars[0]].data[0].shape)
         for t, time_step in enumerate(time_indices):
+            prog = "*" * t + " " * (time_indices.size - t)
+            sys.stdout.write("\rTimestep: {0:02d}/{1:02d} [{2}]".format(time_step, time_indices.size, prog))
+            sys.stdout.flush()
             merged_data_step = pd.DataFrame(index=np.arange(model_grid[model_vars[0]].data[0].size),columns=columns)
             vt = valid_times[t]
             merged_data_step['date'] = vt
@@ -229,11 +234,15 @@ def merge_model_forecasts(model_grids, config):
                 merged_data = merged_data_step
             else:
                 merged_data = merged_data.append(merged_data_step, ignore_index=True)
+        print("\n")
         merged_data = filter_data(merged_data, config.queries)
         if merged_data is not None:
-            outfile = config.data_dir + model_name.split("/")[-1].replace(".nc", ".csv")
+            outfile = config.data_dir + model_name.split("/")[-1].replace(".nc", "." + config.out_format)
             print("Writing " + outfile)
-            merged_data.to_csv(outfile, float_format="%0.3f", index_label="record")
+            if config.out_format == "csv":
+                merged_data.to_csv(outfile, float_format="%0.3f", index_label="record")
+            elif config.out_format == "hdf":
+                merged_data.to_hdf(outfile, "data", mode="w", complevel=4, complib="zlib")
     return
 
 
