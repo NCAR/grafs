@@ -7,7 +7,7 @@ from datetime import datetime,timedelta
 
 import numpy as np
 import pandas as pd
-
+from pygrafs.libs.data.LandGrid import LandGrid
 from pygrafs.libs.data.ModelGrid import ModelGrid
 from pygrafs.libs.data.ObsSite import ObsSite
 from pygrafs.libs.util.Config import Config
@@ -16,7 +16,7 @@ from pygrafs.libs.util.Config import Config
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("config",help="Configuration file")
-    parser.add_argument("--proc","-p",default=1,type=int,help="Number of processors")
+    parser.add_argument("--proc", "-p", default=1,type=int,help="Number of processors")
     args = parser.parse_args()
     config = Config(args.config)
     start_date = datetime.strptime(config.start_date, config.date_format)
@@ -51,6 +51,9 @@ def create_forecast_data(config, date):
     """
     model_subset_grids, valid_datetimes = load_model_forecasts(config, date)
     model_unique_dates = None
+    land_grids = None
+    if hasattr(config, "land_files"):
+        land_grids = get_land_grid_data(config, model_subset_grids.values[0].x, model_subset_grids.values[0].y)
     for model_file in valid_datetimes.iterkeys():
         print(model_file)
         if model_unique_dates is None:
@@ -60,7 +63,7 @@ def create_forecast_data(config, date):
                                             model_subset_grids[model_file].values()[0].get_unique_dates())
     if config.mode == "train" and model_unique_dates is not None:
         all_obs = load_obs(config, model_unique_dates)
-        match_model_obs(model_subset_grids, all_obs, config)
+        match_model_obs(model_subset_grids, all_obs, config, land_grids=land_grids)
 
     if config.mode == "forecast" and model_unique_dates is not None:
         merge_model_forecasts(model_subset_grids, config)
@@ -124,7 +127,23 @@ def load_model_forecasts(config, date):
     return model_subset_grids, valid_datetimes
 
 
-def match_model_obs(model_grids, all_obs, config):
+def get_land_grid_data(config, interp_lons, interp_lats):
+    """
+    Load static gridded data about each grid point, such as elevation and land cover information.
+
+    :param config:
+    :param interp_lons:
+    :param interp_lats:
+    :return:
+    """
+    land_grids = {}
+    for l, land_file in enumerate(config.land_files):
+        lg = LandGrid(land_file, data_vars=config.land_variables[l])
+        for var in config.land_variables[l]:
+            land_grids[var] = lg.interpolate_grid(var, interp_lons, interp_lats)
+    return land_grids
+
+def match_model_obs(model_grids, all_obs, config, land_grids=None):
     """
     Match models output at observation sites with observations.
 
@@ -159,6 +178,9 @@ def match_model_obs(model_grids, all_obs, config):
                         merged_data_step['sine_doy'] = np.sin(vt.timetuple().tm_yday / 365.0 * np.pi)
                         merged_data_step['row'] = station_indices[:, 0]
                         merged_data_step['col'] = station_indices[:, 1]
+                        if land_grids is not None:
+                            for land_var in sorted(land_grids.keys()):
+                                merged_data_step[land_var] = land_grids[station_indices[:, 0], station_coords[:, 1]]
                         for var in model_vars:
                             # Extract grid point model values
                             merged_data_step[var + "_f"] = model_grid[var].data[mt,
@@ -191,7 +213,7 @@ def match_model_obs(model_grids, all_obs, config):
     return
 
 
-def merge_model_forecasts(model_grids, config):
+def merge_model_forecasts(model_grids, config, land_grids=None):
     """
     Given loaded model grids, merge the grids into a data table and output the table to csv.
 
@@ -221,10 +243,13 @@ def merge_model_forecasts(model_grids, config):
             merged_data_step['forecast_hour'] = int((vt - valid_times[0]).total_seconds() / 3600)
             merged_data_step['day_of_year'] = vt.timetuple().tm_yday
             merged_data_step['sine_doy'] = np.sin(vt.timetuple().tm_yday / 365.0 * np.pi)
-            merged_data_step['row'] = data_indices[0].flatten()
-            merged_data_step['col'] = data_indices[1].flatten()
-            merged_data_step['lon'] = model_grid[model_vars[0]].x.flatten()
-            merged_data_step['lat'] = model_grid[model_vars[0]].y.flatten()
+            merged_data_step['row'] = data_indices[0].ravel()
+            merged_data_step['col'] = data_indices[1].ravel()
+            merged_data_step['lon'] = model_grid[model_vars[0]].x.ravel()
+            merged_data_step['lat'] = model_grid[model_vars[0]].y.ravel()
+            if land_grids is not None:
+                for land_var in sorted(land_grids.keys()):
+                    merged_data_step[land_var] = land_grids[var].ravel()
             for var in model_vars:
                 merged_data_step.loc[:, var + "_f"] = model_grid[var].data[time_step].flatten()
                 stat_arrays = model_grid[var].get_neighbor_grid_stats(time_step, stats=config.stats)

@@ -53,6 +53,13 @@ class MLTrainer(object):
 
         self.all_data = self.all_data.replace(np.nan, 0)
 
+    def sub_sample_data(self, num_samples, method='random', replace=False):
+        if method == 'random':
+            indices = np.random.choice(self.all_data.shape[0], num_samples, replace=replace)
+            sampled_data = self.all_data.ix[indices, :]
+            sampled_data.reset_index(inplace=True)
+        return sampled_data
+
     def train_model(self, model_name, model_obj):
         """
         Trains a machine learning model and adds it to the collection of models associated with this data.
@@ -78,7 +85,7 @@ class MLTrainer(object):
         """
         random_indices = np.random.permutation(self.all_data.shape[0])
         predictions = np.zeros(self.all_data.shape[0])
-        print model_name
+        print(model_name)
         for f in range(n_folds):
             split_start = random_indices.size * f / n_folds
             split_end = random_indices.size * (f + 1) / n_folds

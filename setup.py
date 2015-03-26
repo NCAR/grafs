@@ -7,4 +7,4 @@ if __name__ == "__main__":
       author="David John Gagne",
       author_email="dgagne@ucar.edu",
       packages=["pygrafs", "pygrafs.libs", "pygrafs.apps","pygrafs.scripts", "pygrafs.scripts.plotting"],
-      install_requires=["numpy>=1.8", "pandas>=0.15", "scipy", "matplotlib", "netCDF4", "scikit-learn>=0.15"])
+      install_requires=["numpy>=1.8", "pandas>=0.15", "scipy", "matplotlib", "netCDF4", "scikit-learn>=0.15", 'pyproj'])
