@@ -42,7 +42,7 @@ class LandGrid(object):
             self.lat = land_obj.variables[self.lat_var][:]
             self.data = {}
             for data_var in data_vars:
-                self.data[data_var] = land_obj.variables[data_var[:]]
+                self.data[data_var] = land_obj.variables[data_var][:]
         finally:
             land_obj.close()
 

@@ -53,7 +53,8 @@ def create_forecast_data(config, date):
     model_unique_dates = None
     land_grids = None
     if hasattr(config, "land_files"):
-        land_grids = get_land_grid_data(config, model_subset_grids.values[0].x, model_subset_grids.values[0].y)
+        model_obj = model_subset_grids.values()[0].values()[0]
+        land_grids = get_land_grid_data(config, model_obj.x, model_obj.y)
     for model_file in valid_datetimes.iterkeys():
         print(model_file)
         if model_unique_dates is None:
@@ -180,7 +181,8 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                         merged_data_step['col'] = station_indices[:, 1]
                         if land_grids is not None:
                             for land_var in sorted(land_grids.keys()):
-                                merged_data_step[land_var] = land_grids[station_indices[:, 0], station_coords[:, 1]]
+                                merged_data_step[land_var] = land_grids[land_var][station_indices[:, 0],
+                                                                                  station_indices[:, 1]]
                         for var in model_vars:
                             # Extract grid point model values
                             merged_data_step[var + "_f"] = model_grid[var].data[mt,
@@ -249,7 +251,7 @@ def merge_model_forecasts(model_grids, config, land_grids=None):
             merged_data_step['lat'] = model_grid[model_vars[0]].y.ravel()
             if land_grids is not None:
                 for land_var in sorted(land_grids.keys()):
-                    merged_data_step[land_var] = land_grids[var].ravel()
+                    merged_data_step[land_var] = land_grids[land_var].ravel()
             for var in model_vars:
                 merged_data_step.loc[:, var + "_f"] = model_grid[var].data[time_step].flatten()
                 stat_arrays = model_grid[var].get_neighbor_grid_stats(time_step, stats=config.stats)
