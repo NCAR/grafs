@@ -14,7 +14,7 @@ def main():
     subset_data = model_grid.load_subset("av_dswrf_sfc", t_range, y_range, x_range, space_subset_type="coordinate")
     land_grid = LandGrid("/d2/dgagne/GTOPO30_HYDRO_1K_terrain.nc")
     print "interpolating"
-    interp_data = land_grid.interpolate_grid(subset_data.x, subset_data.y)
+    interp_data = land_grid.interpolate_grid("dem", subset_data.x, subset_data.y)
     print "plotting"
     plt.contourf(subset_data.x, subset_data.y, interp_data)
     plt.colorbar()
@@ -50,6 +50,7 @@ class LandGrid(object):
         """
         Interpolate native data to given lat-lon grid using nearest neighbor interpolation.
 
+        :param var: Variable being interpolated
         :param lon_grid: 2-d array of longitude values
         :param lat_grid: 2-d array of latitude values
         :return: interpolated values as a 2-d array with the same shape as the longitude grid

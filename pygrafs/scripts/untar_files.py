@@ -1,9 +1,10 @@
 import subprocess
 from glob import glob
 import os
+import sys
 
 def main():
-    path = "/d2/dgagne/grid_int_fcst/"
+    path = sys.argv[1]
     tar_files = sorted(glob(path + "*.tar.gz"))
     for tar_file in tar_files:
         date = tar_file.split(".")[1]

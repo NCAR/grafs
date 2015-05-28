@@ -1,7 +1,7 @@
 """
 This module loads and performs operations on gridded model output.
 """
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import numpy as np
 from netCDF4 import Dataset, num2date
@@ -21,7 +21,7 @@ class ModelGrid(object):
     """
 
     def __init__(self, filename, x_var="lon", y_var="lat",
-                 time_var="forc_time", time_format="grafs_int",delta_t=timedelta(hours=1)):
+                 time_var="forc_time", time_format="grafs_int", delta_t=timedelta(hours=1)):
         self.filename = filename
         self.file_obj = Dataset(self.filename)
         self.x_var = x_var
@@ -29,8 +29,8 @@ class ModelGrid(object):
         self.time_var = time_var
         self.time_format = time_format
         self.delta_t = delta_t
-        #Initialize empty data dictionary to store information from 1 or more
-        #variables.
+        # Initialize empty data dictionary to store information from 1 or more
+        # variables.
         self.data = {}
         #Load longitude and latitude grids if available.
         if self.x_var is not None:
@@ -42,8 +42,11 @@ class ModelGrid(object):
         if time_format == "grafs_int":
             self.start_date = num2date(self.file_obj.variables[time_var][:],
                                        self.file_obj.variables[time_var].units)
-            num_times = len(self.file_obj.dimensions['daily_fcst_times'])
-            self.valid_dates = np.array([self.start_date + t * delta_t for t in range(num_times)])
+
+            time_dim = 'fcst_times' if 'fcst_times' in self.file_obj.dimensions.keys() else 'daily_fcst_times'
+            num_times = len(self.file_obj.dimensions[time_dim])
+            self.all_dates = np.array([self.start_date + t * delta_t for t in range(num_times)])
+            self.valid_dates = None
         return
 
     def load_full(self, variable):
@@ -73,11 +76,15 @@ class ModelGrid(object):
         :param time_subset_type:
         """
         if variable in self.file_obj.variables.keys():
+            full_data = self.file_obj.variables[variable][:]
+            valid_time_indices = np.any(np.any(~full_data.mask, axis=2), axis=1)
+            full_data = full_data[valid_time_indices]
+            self.valid_dates = self.all_dates[valid_time_indices]
             if time_subset_type.lower() == "index":
                 start_time = time_subset[0]
                 end_time = time_subset[1] + 1
             elif time_subset_type.lower() == "coordinate":
-                #Compare given datetimes with ones generated from file metadata
+                # Compare given datetimes with ones generated from file metadata
                 start_time = np.where(self.valid_dates == time_subset[0])[0]
                 end_time = np.where(self.valid_dates == time_subset[1])[0] + 1
             else:
@@ -96,13 +103,15 @@ class ModelGrid(object):
                 end_x = 0
                 start_y = 0
                 end_y = 0
-            subset_data = self.file_obj.variables[variable][start_time:end_time,
-                                                            start_y:end_y, start_x:end_x]
+            subset_data = full_data[start_time:end_time,
+                                    start_y:end_y, start_x:end_x]
+
             subset_data[subset_data < -30000] = 0
-            subset_obj = ModelGridSubset(variable,subset_data,
+            subset_data[subset_data > 100000] = 0
+            subset_obj = ModelGridSubset(variable, subset_data,
                                          self.valid_dates[start_time:end_time],
-                                         self.y[start_y:end_y,start_x:end_x],
-                                         self.x[start_y:end_y,start_x:end_x])
+                                         self.y[start_y:end_y, start_x:end_x],
+                                         self.x[start_y:end_y, start_x:end_x])
         else:
             raise KeyError(variable + " not found")
         return subset_obj
@@ -147,14 +156,13 @@ class ModelGridSubset(object):
         self.valid_time_indices = self.get_valid_time_indices()
         self.valid_times = self.times[self.valid_time_indices]
 
-    def get_point_data(self, time, y_point, x_point, method='nearest'):
+    def get_point_data(self, time, y_point, x_point):
         """
         Extract the value of a grid point at a particular time.
 
         :param time: datetime object corresponding to time of interest
         :param y_point: latitude of point
         :param x_point: longitude of point
-        :param method: 'nearest': get grid point nearest to input longitude and latitude
         :return: value of data at point
         """
         t = self.get_time_index(time)
@@ -165,7 +173,7 @@ class ModelGridSubset(object):
             value = np.nan
         return value
 
-    def get_neighbor_grid_stats(self, time_index, neighbor_radius=1, stats=['mean', 'min', 'max']):
+    def get_neighbor_grid_stats(self, time_index, neighbor_radius=1, stats=('mean', 'min', 'max')):
         """
         Calculate grid point neighborhood statistics for every grid point at once.
 
@@ -177,7 +185,7 @@ class ModelGridSubset(object):
         data = self.data[time_index]
         window_size = 1 + 2 * neighbor_radius
         window = np.ones((window_size, window_size), dtype=int)
-        stat_arrays = np.zeros((len(stats),data.shape[0],data.shape[1]))
+        stat_arrays = np.zeros((len(stats), data.shape[0], data.shape[1]))
         for s, stat in enumerate(stats):
             if stat == 'mean':
                 stat_arrays[s] = convolve(data, window, mode='reflect') / float(window.size)
@@ -192,9 +200,9 @@ class ModelGridSubset(object):
             elif stat == 'gradient':
                 stat_arrays[s] = gaussian_gradient_magnitude(data, sigma=neighbor_radius, mode='reflect')
         return stat_arrays
-        
-    
-    def get_neighbor_stats(self, time, y_point, x_point, indices=False, neighbor_radius=1, stats=['mean', 'min', 'max', 'gradient']):
+
+    def get_neighbor_stats(self, time, y_point, x_point, indices=False, neighbor_radius=1,
+                           stats=('mean', 'min', 'max', 'gradient')):
         """
         Calculate statistics about the immediate neighborhood of a grid point.
 
@@ -214,8 +222,11 @@ class ModelGridSubset(object):
             t = self.get_time_index(time)
             i, j = self.coordinate_to_index(x_point, y_point)
         if ~(np.isnan(i) | np.isnan(j)):
-            values = self.data[t,np.maximum(i - neighbor_radius, 0):np.minimum(i + neighbor_radius + 1, self.data.shape[1]),
-                                 np.maximum(j - neighbor_radius, 0):np.minimum(j + neighbor_radius + 1, self.data.shape[2])]
+            values = self.data[t,
+                               np.maximum(i - neighbor_radius, 0):
+                               np.minimum(i + neighbor_radius + 1, self.data.shape[1]),
+                               np.maximum(j - neighbor_radius, 0):
+                               np.minimum(j + neighbor_radius + 1, self.data.shape[2])]
             stat_values = np.zeros(len(stats))
             for s, stat in enumerate(stats):
                 if stat in ['mean', 'min', 'max', 'std', 'var']:
@@ -247,22 +258,7 @@ class ModelGridSubset(object):
 
         :return: array of date objects
         """
-        return np.unique(np.array([t.date() for t in self.times[self.valid_time_indices]]))
-
-    def get_valid_data_times(self):
-        """
-        Get an array of datetimes that correspond to timesteps with valid data.
-
-        :return: array of valid datetimes
-        """
-        valid_data_times = []
-        for t in range(self.data.shape[0]):
-            if hasattr(self.data[t], 'mask'):
-                if np.any(self.data[t].mask == False):
-                    valid_data_times.append(self.times[t])
-            else:
-                valid_data_times.append(self.times[t])
-        return np.array(valid_data_times)
+        return np.unique(np.array([t.date() for t in self.valid_times]))
 
     def get_valid_time_indices(self):
         """
@@ -270,13 +266,7 @@ class ModelGridSubset(object):
 
         :return:
         """
-        valid_indices = []
-        for t in range(self.data.shape[0]):
-            if hasattr(self.data[t], 'mask'):
-                if np.any(~self.data[t].mask):
-                    valid_indices.append(t)
-            else:
-                valid_indices.append(t)
+        valid_indices = np.where(np.any(np.any(~self.data.mask, axis=2), axis=1))[0]
         return np.array(valid_indices, dtype=int)
 
     def coordinate_to_index(self, x, y):

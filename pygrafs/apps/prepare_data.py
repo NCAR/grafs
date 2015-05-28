@@ -1,10 +1,10 @@
+#!/usr/bin/env python
 from multiprocessing import Pool
 from pygrafs.libs.util.pool_manager import pool_manager
 from glob import glob
 import argparse
 import sys
-from datetime import datetime,timedelta
-
+from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 from pygrafs.libs.data.LandGrid import LandGrid
@@ -15,8 +15,8 @@ from pygrafs.libs.util.Config import Config
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("config",help="Configuration file")
-    parser.add_argument("--proc", "-p", default=1,type=int,help="Number of processors")
+    parser.add_argument("config", help="Configuration file")
+    parser.add_argument("-p", "--proc", default=1, type=int, help="Number of processors")
     args = parser.parse_args()
     config = Config(args.config)
     start_date = datetime.strptime(config.start_date, config.date_format)
@@ -36,7 +36,7 @@ def main():
                 curr_date += timedelta(days=1)
             pool_manager(procs, False)
         finally:
-            pool.close()
+            pool.terminate()
             pool.join()
     return
 
@@ -52,13 +52,14 @@ def create_forecast_data(config, date):
     model_subset_grids, valid_datetimes = load_model_forecasts(config, date)
     model_unique_dates = None
     land_grids = None
-    if hasattr(config, "land_files"):
+    if hasattr(config, "land_files") and len(model_subset_grids) > 0:
         model_obj = model_subset_grids.values()[0].values()[0]
         land_grids = get_land_grid_data(config, model_obj.x, model_obj.y)
     for model_file in valid_datetimes.iterkeys():
-        print(model_file)
+        print(model_subset_grids[model_file].keys())
         if model_unique_dates is None:
             model_unique_dates = model_subset_grids[model_file].values()[0].get_unique_dates()
+            print "Model unique dates", model_unique_dates
         else:
             model_unique_dates = np.union1d(model_unique_dates,
                                             model_subset_grids[model_file].values()[0].get_unique_dates())
@@ -105,17 +106,18 @@ def load_model_forecasts(config, date):
     valid_datetimes = {}
     if len(model_files) > 0:
         for model_file in model_files:
+            print(model_file)
             model_grid = ModelGrid(model_file)
             model_subset_grids[model_file] = {}
             valid_datetimes[model_file] = {}
             for var in config.model_vars:
                 model_subset_grids[model_file][var] = model_grid.load_subset(var,
-                                                                config.t_range,
-                                                                config.y_range,
-                                                                config.x_range,
-                                                                time_subset_type=config.time_subset_type,
-                                                                space_subset_type=config.space_subset_type)
-                valid_datetimes[model_file][var] = model_subset_grids[model_file][var].get_valid_data_times()         
+                                                                             config.t_range,
+                                                                             config.y_range,
+                                                                             config.x_range,
+                                                                             time_subset_type=config.time_subset_type,
+                                                                             space_subset_type=config.space_subset_type)
+                valid_datetimes[model_file][var] = model_subset_grids[model_file][var].valid_times
                 if "all" not in valid_datetimes[model_file].keys():
                     valid_datetimes[model_file]["all"] = valid_datetimes[model_file][var]
                 else:
@@ -144,6 +146,7 @@ def get_land_grid_data(config, interp_lons, interp_lats):
             land_grids[var] = lg.interpolate_grid(var, interp_lons, interp_lats)
     return land_grids
 
+
 def match_model_obs(model_grids, all_obs, config, land_grids=None):
     """
     Match models output at observation sites with observations.
@@ -158,6 +161,7 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
             merged_data = None
             model_vars = sorted(model_grid.keys())
             unique_dates = model_grid[model_vars[0]].get_unique_dates()
+            run_date = model_grid[model_vars[0]].valid_times[0]
             date_steps = np.array([t.date() for t in model_grid[model_vars[0]].times])
             for obs_date in sorted(all_obs.keys()):
                 if obs_date in unique_dates:
@@ -166,15 +170,16 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                     for s in range(station_indices.shape[0]):
                         station_indices[s] = model_grid[model_vars[0]].coordinate_to_index(*station_coords[s])
                     match_time_indices = np.intersect1d(np.where(date_steps == obs_date)[0],
-                                   model_grid[model_vars[0]].valid_time_indices)
+                                                        model_grid[model_vars[0]].valid_time_indices)
                     for mt in match_time_indices:
                         vt = model_grid[model_vars[0]].times[mt]
-                        merged_data_step = pd.DataFrame({'station':all_obs[obs_date].station_data.index})
+                        merged_data_step = pd.DataFrame({'station': all_obs[obs_date].station_data.index})
                         # Create metadata columns
-                        merged_data_step['date'] = vt
+                        merged_data_step['run_date'] = run_date
+                        merged_data_step['valid_date'] = vt
                         merged_data_step['valid_hour_utc'] = vt.hour
                         merged_data_step['valid_hour_pst'] = (vt.hour - 8) % 24
-                        merged_data_step['forecast_hour']  = int((vt - model_grid[model_vars[0]].valid_times[0]).total_seconds() / 3600)
+                        merged_data_step['forecast_hour'] = int((vt - model_grid[model_vars[0]].valid_times[0]).total_seconds() / 3600)
                         merged_data_step['day_of_year'] = vt.timetuple().tm_yday
                         merged_data_step['sine_doy'] = np.sin(vt.timetuple().tm_yday / 365.0 * np.pi)
                         merged_data_step['row'] = station_indices[:, 0]
@@ -196,20 +201,22 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                                                                                       station_indices[:, 1]]
                         # Match model output instances with observations
                         merged_data_obs = pd.merge(merged_data_step, all_obs[vt.date()].data[config.obs_var],
-                                                   how="inner", on=['station', 'date'])
-                        merged_data_obs['add_diff'] = merged_data_obs[config.obs_var + "_f"] - merged_data_obs[config.obs_var]
+                                                   how="inner", on=['station', 'valid_date'])
+                        merged_data_obs['add_diff'] = merged_data_obs[config.obs_var + "_f"] -\
+                            merged_data_obs[config.obs_var]
                         if merged_data is None:
                             merged_data = merged_data_obs
                         else:
                             merged_data = merged_data.append(merged_data_obs, ignore_index=True)
-            merged_data = filter_data(merged_data, config.queries)
             if merged_data is not None:
-                outfile = config.data_dir + model_name.split("/")[-1].replace(".nc", "." + config.out_format)
+                merged_data = filter_data(merged_data, config.queries)
+                outfile = config.data_dir + config.model_name + "_" + \
+                    model_name.split("/")[-1].replace(".nc", "." + config.out_format)
                 print("Writing " + outfile)
                 if config.out_format == "csv":
                     merged_data.to_csv(outfile,
-                                   float_format="%0.3f",
-                                   index_label="record")
+                                       float_format="%0.3f",
+                                       index_label="record")
                 elif config.out_format == "hdf":
                     merged_data.to_hdf(outfile, "data", mode="w", complevel=4, complib="zlib")
     return
@@ -226,7 +233,7 @@ def merge_model_forecasts(model_grids, config, land_grids=None):
     for model_name, model_grid in model_grids.iteritems():
         merged_data = None
         model_vars = sorted(model_grid.keys())
-        columns = ['date', 'valid_hour_utc', 'valid_hour_pst', 'forecast_hour', 
+        columns = ['run_date', 'valid_date', 'valid_hour_utc', 'valid_hour_pst', 'forecast_hour',
                     'day_of_year', 'sine_doy', 'row', 'col', 'lon', 'lat']
         for v in model_vars:
             columns.extend([v + '_f'] + [v + '_f_' + stat for stat in config.stats])
@@ -235,11 +242,13 @@ def merge_model_forecasts(model_grids, config, land_grids=None):
         data_indices = np.indices(model_grid[model_vars[0]].data[0].shape)
         for t, time_step in enumerate(time_indices):
             prog = "*" * t + " " * (time_indices.size - t)
+            #TODO use log library instead of print statements
             sys.stdout.write("\rTimestep: {0:02d}/{1:02d} [{2}]".format(time_step, time_indices.size, prog))
             sys.stdout.flush()
-            merged_data_step = pd.DataFrame(index=np.arange(model_grid[model_vars[0]].data[0].size),columns=columns)
+            merged_data_step = pd.DataFrame(index=np.arange(model_grid[model_vars[0]].data[0].size), columns=columns)
             vt = valid_times[t]
-            merged_data_step['date'] = vt
+            merged_data_step['run_date'] = valid_times[0]
+            merged_data_step['valid_date'] = vt
             merged_data_step['valid_hour_utc'] = vt.hour
             merged_data_step['valid_hour_pst'] = (vt.hour - 8) % 24
             merged_data_step['forecast_hour'] = int((vt - valid_times[0]).total_seconds() / 3600)
@@ -262,9 +271,10 @@ def merge_model_forecasts(model_grids, config, land_grids=None):
             else:
                 merged_data = merged_data.append(merged_data_step, ignore_index=True)
         print("\n")
-        merged_data = filter_data(merged_data, config.queries)
         if merged_data is not None:
-            outfile = config.data_dir + model_name.split("/")[-1].replace(".nc", "." + config.out_format)
+            merged_data = filter_data(merged_data, config.queries)
+            outfile = config.data_dir + config.model_name + \
+                model_name.split("/")[-1].replace(".nc", "." + config.out_format)
             print("Writing " + outfile)
             if config.out_format == "csv":
                 merged_data.to_csv(outfile, float_format="%0.3f", index_label="record")
@@ -283,7 +293,7 @@ def filter_data(data, queries):
     """
     for query in queries:
         data = data.query(query)
-    data.reset_index(inplace=True)
+    data.reset_index(drop=True, inplace=True)
     return data
 
 

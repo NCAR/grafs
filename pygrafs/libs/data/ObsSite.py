@@ -1,14 +1,12 @@
-from netCDF4 import Dataset,num2date
+from netCDF4 import Dataset, num2date
 import numpy as np
 import pandas as pd
-
 
 
 def main():
     var = "av_dswrf_sfc"
     obs = ObsSite("/d2/dgagne/grafs/pygrafs/test/test_data/int_obs.20141215.nc")
     obs.load_data(var)
-    obs.calc_clearsky(var)
     print obs.data[var]
     return
 
@@ -39,12 +37,12 @@ class ObsSite(object):
         :return: pandas DataFrame containing locations and names for the
             available observation sites
         """
-        col_names = ["index","synop","icao","lat","lon","elev","plot","longname","state","country"]
+        col_names = ["index", "synop", "icao", "lat", "lon", "elev", "plot", "longname", "state", "country"]
         meta_data = pd.read_csv(self.meta_file,
-                    sep=self.meta_delimiter,
-                    header=None,
-                    names=col_names,
-                    index_col="index")
+                                sep=self.meta_delimiter,
+                                header=None,
+                                names=col_names,
+                                index_col="index")
         return meta_data
 
     def load_data(self, variable):
@@ -59,16 +57,16 @@ class ObsSite(object):
         valid_rows = np.unique(np.nonzero(all_data < all_data.max())[0])
         # Mask out data values that are invalid
         data = np.ma.array(all_data[valid_rows],
-                                          mask=all_data[valid_rows] == all_data.max())
+                           mask=all_data[valid_rows] == all_data.max())
         # Get valid stations
         stations = self.file_obj.variables['site_list'][valid_rows]
         self.station_data = self.meta_data.loc[stations]
-        flat_dict = {'station': [], 'date': [], variable: []}
+        flat_dict = {'station': [], 'valid_date': [], variable: []}
 
         # Loop through all data values and add metadata and data values to data structure
         for (s, d), v in np.ndenumerate(data):
             flat_dict['station'].append(stations[s])
-            flat_dict['date'].append(self.times[d])
+            flat_dict['valid_date'].append(self.times[d])
             if v > 1e30:
                 flat_dict[variable].append(np.nan)
             else:
@@ -78,7 +76,8 @@ class ObsSite(object):
         # Remove rows with nan values
         flat_data = flat_data.dropna()
         # Join latitude and longitude information to station observations
-        self.data[variable] = pd.merge(flat_data, self.station_data[["lat","lon"]], left_on="station", right_index=True, how="left")
+        self.data[variable] = pd.merge(flat_data, self.station_data[["lat", "lon"]],
+                                       left_on="station", right_index=True, how="left")
         return
 
     def filter_by_location(self, variable, lon_bounds, lat_bounds):
@@ -92,7 +91,7 @@ class ObsSite(object):
                                                      & (self.data[variable]['lon'] <= lon_bounds[1])
                                                      & (self.data[variable]['lat'] >= lat_bounds[0])
                                                      & (self.data[variable]['lat'] <= lat_bounds[1])]
-        self.data[variable].reset_index(inplace=True)
+        self.data[variable].reset_index(drop=True, inplace=True)
         self.station_data = self.station_data.ix[(self.station_data['lon'] >= lon_bounds[0])
                                                  & (self.station_data['lon'] <= lon_bounds[1])
                                                  & (self.station_data['lat'] >= lat_bounds[0])

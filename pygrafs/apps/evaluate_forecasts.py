@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('agg')
 import argparse
 import pandas as pd
 from pygrafs.libs.util.Config import Config
@@ -28,7 +30,9 @@ def load_forecast_file(filename):
     :param filename: Full path and name of file.
     :return: A pandas DataFrame containing the predictions, observations, and metadata.
     """
-    return pd.read_csv(filename)
+    data = pd.read_csv(filename)
+    data = data.loc[data['av_dswrf_sfc'] > 0]
+    return data
 
 
 def calc_scores_by_model(forecast_data, config):

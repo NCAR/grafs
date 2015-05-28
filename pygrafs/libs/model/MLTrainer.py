@@ -43,13 +43,11 @@ class MLTrainer(object):
                 data_file_list.append(pd.read_csv(data_file))
             elif self.data_format == "hdf":
                 data_file_list.append(pd.read_hdf(data_file, "data"))
-        self.all_data = data_file_list[0].append(data_file_list[1:], ignore_index=True)
-        if "level_0" in self.all_data.columns:
-            self.all_data.drop("level_0", axis=1, inplace=True)
+        self.all_data = pd.concat(data_file_list, ignore_index=True)
         if query is not None:
             for q in query:
                 self.all_data = self.all_data.query(q)
-            self.all_data.reset_index(inplace=True)
+            self.all_data.reset_index(drop=True, inplace=True)
 
         self.all_data = self.all_data.replace(np.nan, 0)
 
@@ -101,6 +99,33 @@ class MLTrainer(object):
             self.show_feature_importance()
         return predictions
 
+    def site_validation(self, model_names, model_objs, pred_columns, split_day):
+        """
+        Train model at random subset of sites and validate at holdout sites.
+
+        :param model_names: List of model names
+        :param model_objs: List of model objects
+        :param pred_columns: Columns from all_data to be included in output prediction data frame
+        :param split_day: day of year used to split training and testing data
+        :return: predictions and metadata in data frame
+        """
+        all_sites = np.sort(self.all_data['station'].unique())
+        shuffled_sites = np.random.permutation(all_sites)
+        train_stations = shuffled_sites[:shuffled_sites.size / 2]
+        test_stations = shuffled_sites[shuffled_sites.size/2:]
+        train_data = self.all_data.loc[self.all_data['station'].isin(train_stations) &
+                                       (self.all_data['day_of_year'] < split_day)]
+        test_data = self.all_data.loc[self.all_data['station'].isin(test_stations) &
+                                      (self.all_data['day_of_year'] >= split_day)]
+        predictions = test_data[pred_columns]
+        for m, model_obj in enumerate(model_objs):
+            print model_names[m]
+            model_obj.fit(train_data.loc[:, self.input_columns], train_data.loc[:, self.output_column])
+            predictions[model_names[m]] = model_obj.predict(test_data.loc[:, self.input_columns])
+            self.models[model_names[m]] = model_obj
+        self.show_feature_importance()
+        return predictions
+
     def show_feature_importance(self, num_rankings=10):
         """
         Display the top features in order of importance.
@@ -125,5 +150,5 @@ class MLTrainer(object):
         """
         for model_name, model_obj in self.models.iteritems():
             with open(model_path + model_name + ".pkl", "w") as model_file:
-                pickle.dump(model_obj, model_file)
+                pickle.dump(model_obj, model_file, pickle.HIGHEST_PROTOCOL)
         return
