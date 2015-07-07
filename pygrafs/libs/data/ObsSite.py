@@ -14,13 +14,15 @@ def main():
 class ObsSite(object):
     def __init__(self, filename,
                  file_format='nc',
-                 meta_file="/d2/dgagne/static_data/site_list/int_obs_sites.asc",
+                 meta_file="/d2/dgagne/static_data/site_list/int_obs_sites_solar.asc",
                  meta_delimiter=';',
+                 meta_index_col="stationNumber",
                  time_var="time_nominal"):
         self.filename = filename
         self.file_format = file_format
         self.meta_file = meta_file
         self.meta_delimiter = meta_delimiter
+        self.meta_index_col = meta_index_col
         self.meta_data = self.load_meta_file()
         self.time_var = time_var
         self.file_obj = Dataset(self.filename)
@@ -37,12 +39,9 @@ class ObsSite(object):
         :return: pandas DataFrame containing locations and names for the
             available observation sites
         """
-        col_names = ["index", "synop", "icao", "lat", "lon", "elev", "plot", "longname", "state", "country"]
         meta_data = pd.read_csv(self.meta_file,
                                 sep=self.meta_delimiter,
-                                header=None,
-                                names=col_names,
-                                index_col="index")
+                                index_col=self.meta_index_col)
         return meta_data
 
     def load_data(self, variable):
@@ -60,17 +59,19 @@ class ObsSite(object):
                            mask=all_data[valid_rows] == all_data.max())
         # Get valid stations
         stations = self.file_obj.variables['site_list'][valid_rows]
+        station_codes = self.meta_data.loc[stations, "solar_code"].values.astype(int)
         self.station_data = self.meta_data.loc[stations]
         flat_dict = {'station': [], 'valid_date': [], variable: []}
 
         # Loop through all data values and add metadata and data values to data structure
         for (s, d), v in np.ndenumerate(data):
-            flat_dict['station'].append(stations[s])
-            flat_dict['valid_date'].append(self.times[d])
-            if v > 1e30:
-                flat_dict[variable].append(np.nan)
-            else:
-                flat_dict[variable].append(v)
+            if station_codes[s] == 8:
+                flat_dict['station'].append(stations[s])
+                flat_dict['valid_date'].append(self.times[d])
+                if v > 1e30:
+                    flat_dict[variable].append(np.nan)
+                else:
+                    flat_dict[variable].append(v)
         # Convert data to data frame.
         flat_data = pd.DataFrame(flat_dict)
         # Remove rows with nan values

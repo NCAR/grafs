@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 from multiprocessing import Pool
-from pygrafs.libs.util.pool_manager import pool_manager
 from glob import glob
 import argparse
 import sys
@@ -11,6 +10,7 @@ from pygrafs.libs.data.LandGrid import LandGrid
 from pygrafs.libs.data.ModelGrid import ModelGrid
 from pygrafs.libs.data.ObsSite import ObsSite
 from pygrafs.libs.util.Config import Config
+import traceback
 
 
 def main():
@@ -30,14 +30,12 @@ def main():
     if args.proc > 1:
         pool = Pool(args.proc)
         procs = {}
-        try:
-            while curr_date <= end_date:
-                procs[curr_date] = pool.apply_async(create_forecast_data, (config, curr_date))
-                curr_date += timedelta(days=1)
-            pool_manager(procs, False)
-        finally:
-            pool.terminate()
-            pool.join()
+        while curr_date <= end_date:
+            procs[curr_date] = pool.apply_async(create_forecast_data, (config, curr_date))
+            curr_date += timedelta(days=1)
+        pool.close()
+        pool.join()
+
     return
 
 
@@ -49,26 +47,31 @@ def create_forecast_data(config, date):
         and observation data.
     :param date: datetime object with the date of the model runs being used.
     """
-    model_subset_grids, valid_datetimes = load_model_forecasts(config, date)
-    model_unique_dates = None
-    land_grids = None
-    if hasattr(config, "land_files") and len(model_subset_grids) > 0:
-        model_obj = model_subset_grids.values()[0].values()[0]
-        land_grids = get_land_grid_data(config, model_obj.x, model_obj.y)
-    for model_file in valid_datetimes.iterkeys():
-        print(model_subset_grids[model_file].keys())
-        if model_unique_dates is None:
-            model_unique_dates = model_subset_grids[model_file].values()[0].get_unique_dates()
-            print "Model unique dates", model_unique_dates
-        else:
-            model_unique_dates = np.union1d(model_unique_dates,
-                                            model_subset_grids[model_file].values()[0].get_unique_dates())
-    if config.mode == "train" and model_unique_dates is not None:
-        all_obs = load_obs(config, model_unique_dates)
-        match_model_obs(model_subset_grids, all_obs, config, land_grids=land_grids)
+    try:
+        model_subset_grids, valid_datetimes = load_model_forecasts(config, date)
+        model_unique_dates = None
+        land_grids = None
+        if hasattr(config, "land_files") and len(model_subset_grids) > 0:
+            model_obj = model_subset_grids.values()[0].values()[0]
+            land_grids = get_land_grid_data(config, model_obj.x, model_obj.y)
+        for model_file in valid_datetimes.iterkeys():
+            print(model_subset_grids[model_file].keys())
+            if model_unique_dates is None:
+                model_unique_dates = model_subset_grids[model_file].values()[0].get_unique_dates()
+                print "Model unique dates", model_unique_dates
+            else:
+                model_unique_dates = np.union1d(model_unique_dates,
+                                                model_subset_grids[model_file].values()[0].get_unique_dates())
+        if config.mode == "train" and model_unique_dates is not None:
+            all_obs = load_obs(config, model_unique_dates)
+            print all_obs
+            match_model_obs(model_subset_grids, all_obs, config, land_grids=land_grids)
 
-    if config.mode == "forecast" and model_unique_dates is not None:
-        merge_model_forecasts(model_subset_grids, config)
+        if config.mode == "forecast" and model_unique_dates is not None:
+            merge_model_forecasts(model_subset_grids, config)
+    except Exception:
+        print traceback.format_exc()
+        raise
 
     return
 

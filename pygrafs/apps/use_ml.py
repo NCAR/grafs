@@ -24,6 +24,7 @@ def main():
     if args.site:
         site_validation(config)
     if args.fore:
+        print "Forecasting"
         forecast_models(config)
     return
 

@@ -18,13 +18,14 @@ def main():
     return
 
 
-def csv_to_grid(forecast_file, models=["av_dswrf_sfc_f", "Random Forest", "Linear Regression"]):
+def csv_to_grid(forecast_file, models=["av_dswrf_sfc_f", "Random Forest", "Gradient Boosting", "Linear Regression"]):
     if forecast_file[-3:] == "csv":
         forecast_data = pd.read_csv(forecast_file)
     else:
         forecast_data = pd.read_hdf(forecast_file, "predictions")
+    print forecast_data.columns
     forecast_hours = forecast_data['forecast_hour'].unique()
-    dates = forecast_data['date'].unique()
+    dates = forecast_data['valid_date'].unique()
     forecast_hours.sort()
     grid_shape = (forecast_hours.size, forecast_data['row'].max() + 1, forecast_data['col'].max() + 1)
     grid_predictions = OrderedDict()
@@ -45,15 +46,15 @@ def csv_to_grid(forecast_file, models=["av_dswrf_sfc_f", "Random Forest", "Linea
 
 def load_input_data(filename):
     if filename[-3:] == "csv":
-        data = pd.read_csv(filename, parse_dates=['date'])
+        data = pd.read_csv(filename, parse_dates=['valid_date'])
     else:
         data = pd.read_hdf(filename, "predictions")
-    print data['date']
+    print data['valid_date']
     return data.loc[:, ['lon', 'lat', 'row', 'col', 'forecast_hour', 'av_dswrf_sfc']]
 
 
 def plot(grid_predictions, input_data=None):
-    contours = np.arange(0, 810, 10)
+    contours = np.arange(0, 1550, 50)
     bmap = Basemap(projection='cyl',
                    resolution='l',
                    llcrnrlon=grid_predictions['lon'].min(),
