@@ -11,16 +11,12 @@ from mpl_toolkits.basemap import Basemap
 def main():
     from datetime import datetime
     obs_path = "/d2/dicast/nt/der_data/obs/int_obs/"
-    lon_bounds = (-125, -114)
-    lat_bounds = (32, 44)
-    qc = ObsQualityControl(datetime(2015, 6, 5), datetime(2015, 6, 25), "av_dswrf_sfc",
+    lon_bounds = (-121, -115)
+    lat_bounds = (32, 35)
+    qc = ObsQualityControl(datetime(2015, 7, 1), datetime(2015, 7, 10), "av_dswrf_sfc",
                            obs_path, lon_bounds, lat_bounds)
     qc.load_data()
-    print qc.data.columns
-    print qc.station_data.columns
     qc.clearness_index()
-    print qc.data['haurwitz_kt'].values
-    print qc.data['clearness_index'].values
     valid_counts = qc.invalid_count()
     biases = qc.bias()
     plt.figure(figsize=(8, 12))
@@ -57,7 +53,7 @@ class ObsQualityControl(object):
         obs_data = []
         station_data = []
         for date in self.dates:
-            print date
+            print(date)
             data_file = self.obs_path + "{0}/int_obs.{0}.nc".format(date.date().strftime("%Y%m%d"))
             data_obj = ObsSite(data_file)
             data_obj.load_data(self.variable)
@@ -83,17 +79,22 @@ class ObsQualityControl(object):
                            altitude=self.station_data.loc[station, "elev"])
             station_ix = self.data["station"] == station
             station_dates = pd.DatetimeIndex(self.data.loc[station_ix, "valid_date"])
-            #station_dates = pd.DatetimeIndex(station_dates.shift(-1, freq="30Min"))
-            sol_pos = get_solarposition(station_dates, loc)
-            sol_pos["etr"] = extraradiation(station_dates, method="pyephem")
-            sol_pos["etr_cos"] = sol_pos["etr"] * np.cos(np.radians(sol_pos["apparent_zenith"]))
-            sol_pos.loc[sol_pos["apparent_zenith"] > 90, "etr_cos"] = 0
-            sol_pos["clearness_index"] = self.data.loc[station_ix, self.variable].values / sol_pos["etr_cos"]
+            if len(station_dates) > 0:
+                station_dates_minute = np.concatenate([pd.DatetimeIndex(start=sd + np.timedelta64(-55, 'm'),
+                                                                        end=sd, freq='5min').values
+                                                       for sd in station_dates])
+                station_dates_minute = pd.DatetimeIndex(station_dates_minute)
+                sol_pos = get_solarposition(station_dates_minute, loc)
+                sol_pos["etr"] = extraradiation(station_dates_minute, method="pyephem")
+                sol_pos["etr_cos"] = sol_pos["etr"] * np.cos(np.radians(sol_pos["apparent_zenith"]))
+                sol_pos.loc[sol_pos["apparent_zenith"] > 90, "etr_cos"] = 0
+                sol_pos["haurwitz_ghi"] = haurwitz(sol_pos["apparent_zenith"])
+                sol_pos_mean = pd.rolling_mean(sol_pos, 12, freq='5min')
+                sol_pos_mean = sol_pos_mean.loc[station_dates]
 
-            sol_pos["haurwitz_ghi"] = haurwitz(sol_pos["apparent_zenith"])
-            sol_pos["haurwitz_kt"] = sol_pos["haurwitz_ghi"] / \
-                (sol_pos["etr"] * np.cos(np.radians(sol_pos["apparent_zenith"])))
-            self.data.loc[station_ix, new_columns] = sol_pos[new_columns].values
+                sol_pos_mean["clearness_index"] = self.data.loc[station_ix, self.variable].values / sol_pos_mean["etr_cos"]
+                sol_pos_mean["haurwitz_kt"] = sol_pos_mean["haurwitz_ghi"] / sol_pos_mean["etr_cos"]
+                self.data.loc[station_ix, new_columns] = sol_pos_mean[new_columns].values
 
     def invalid_count(self):
         valid_count = pd.DataFrame(data=np.zeros((self.station_data.shape[0], 3)),
@@ -112,7 +113,7 @@ class ObsQualityControl(object):
                             index=self.station_data.index,
                             columns=["kt_bias", "ghi_bias"])
         for s, station in enumerate(self.station_data.index):
-            si = (self.data["station"] == station) & (self.data["elevation"] > 0)
+            si = (self.data["station"] == station) & (self.data["elevation"] > 20)
             bias.loc[station, "kt_bias"] = np.mean(self.data.loc[si, 'clearness_index']
                                                    - self.data.loc[si, "haurwitz_kt"])
             bias.loc[station, "ghi_bias"] = np.mean(self.data.loc[si, "av_dswrf_sfc"] - self.data.loc[si, "haurwitz_ghi"])
