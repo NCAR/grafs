@@ -182,7 +182,9 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                         merged_data_step['valid_date'] = vt
                         merged_data_step['valid_hour_utc'] = vt.hour
                         merged_data_step['valid_hour_pst'] = (vt.hour - 8) % 24
-                        merged_data_step['forecast_hour'] = int((vt - model_grid[model_vars[0]].valid_times[0]).total_seconds() / 3600)
+                        merged_data_step['forecast_hour'] = int((vt -
+                                                                 model_grid[model_vars[0]].valid_times[0]
+                                                                 ).total_seconds() / 3600)
                         merged_data_step['day_of_year'] = vt.timetuple().tm_yday
                         merged_data_step['sine_doy'] = np.sin(vt.timetuple().tm_yday / 365.0 * np.pi)
                         merged_data_step['row'] = station_indices[:, 0]

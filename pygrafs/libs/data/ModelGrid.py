@@ -77,7 +77,10 @@ class ModelGrid(object):
         """
         if variable in self.file_obj.variables.keys():
             full_data = self.file_obj.variables[variable][:]
-            valid_time_indices = np.any(np.any(~full_data.mask, axis=2), axis=1)
+            if hasattr(full_data, "mask"):
+                valid_time_indices = np.any(np.any(~full_data.mask, axis=2), axis=1)
+            else:
+                valid_time_indices = np.arange(full_data.shape[0])
             full_data = full_data[valid_time_indices]
             self.valid_dates = self.all_dates[valid_time_indices]
             if time_subset_type.lower() == "index":
@@ -266,7 +269,10 @@ class ModelGridSubset(object):
 
         :return:
         """
-        valid_indices = np.where(np.any(np.any(~self.data.mask, axis=2), axis=1))[0]
+        if hasattr(self.data, "mask"):
+            valid_indices = np.where(np.any(np.any(~self.data.mask, axis=2), axis=1))[0]
+        else:
+            valid_indices = np.where(np.any(np.any(self.data < 9e30, axis=2), axis=1))[0]
         return np.array(valid_indices, dtype=int)
 
     def coordinate_to_index(self, x, y):
