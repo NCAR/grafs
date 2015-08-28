@@ -3,15 +3,45 @@ import pandas as pd
 import numpy as np
 from netCDF4 import Dataset, date2num
 from datetime import datetime, timedelta
+from pvlib.solarposition import get_solarposition
+from pvlib.irradiance import extraradiation
+from pvlib.location import Location
+import matplotlib.pyplot as plt
 
 def main():
-    start_date = datetime(2015,5,5,10,5)
-    end_date = datetime(2015,5,6,12,30)
-    stations = ["NRMN", "SPEN"]
-    path = "/d2/dgagne/mesonet/"
-    md = MesonetRawData(start_date, end_date, stations, path)
+    start_date = datetime(1994, 1, 1, 23, 0)
+    end_date = datetime(1999,12, 31, 23, 0)
+    stations = ["NORM", "SPEN", "MTHE", "BEAV"]
+    path = "/idea/mesonet/"
+    station_info_file = path + "geoinfo.csv"
+    md = MesonetRawData(start_date, end_date, stations, path, station_info_file)
     md.load_data()
-    print md.data["NRMN"]["SRAD"]
+    #md.solar_data()
+    print md.data["NORM"]["SRAD"]
+    print md.running_mean("SRAD", 12, 12)
+    print md.running_sd("SRAD", 12, 12)
+    md.solar_data()
+    clearness_index_mean = md.running_mean("CLRI", 12, 12).dropna()
+
+    clearness_index_sd = md.running_sd("CLRI", 12, 12).dropna()
+    def plot_kt_sd_hist(clearness_index_sd, site):
+        ci_counts, bx, by = np.histogram2d(clearness_index_sd.index.hour, clearness_index_sd[site],
+                                           bins=(np.arange(11.5, 25.5), np.arange(0, 1.0, 0.02)))
+        plt.figure(figsize=(8, 8))
+        plt.pcolormesh(bx[:-1], by[:-1], np.ma.array(ci_counts.T, mask=ci_counts.T == 0), vmin=0,
+                       cmap=plt.get_cmap("Reds", 10))
+        plt.xlim(12.5,23.5)
+        plt.ylim(0, 0.3)
+        plt.colorbar()
+        plt.xticks(np.arange(13, 24))
+        plt.xlabel("Hour (UTC)")
+        plt.ylabel("Clearness Index Standard Deviation")
+        plt.title("Diurnal Clearness Index Variability at {0}".format(site))
+        plt.savefig("/Users/djgagne2/ci_figures/kt_sd_{0}.png".format(site), dpi=300, bbox_inches="tight")
+        plt.close()
+    for station in stations:
+        print station
+        plot_kt_sd_hist(clearness_index_sd, station)
     return
 
 
@@ -24,24 +54,51 @@ class MesonetRawData(object):
         self.stations = stations
         self.data = {}
         self.path = path
-        self.station_info = pd.read_csv(station_info_file)
+        self.station_info = pd.read_csv(station_info_file, index_col="stid")
 
     def load_data(self):
         def read_mesonet_day(date):
             filename = self.path + "{0:d}/{1:02d}/{2:02d}/{0:d}{1:02d}{2:02d}{3}.mts".format(
                 date.year, date.month, date.day, station.lower())
-            data = pd.read_table(filename, sep="[ ]{2,5}", skiprows=2, engine="python",
+            data = pd.read_table(filename, sep="[ ]{1,5}", skiprows=2, engine="python",
                                  index_col=False, 
                                  na_values=np.arange(-999,-989, 1).tolist() + ["   "])
-            data.index = pd.TimeSeries(pd.Timestamp(date) + pd.TimedeltaIndex(data["TIME"], unit="m", tz="UTC"))
+            data.index = pd.TimeSeries(pd.Timestamp(date) + pd.TimedeltaIndex(data["TIME"], unit="m"))
             return data
         all_days = np.unique(self.dates.date)
         for station in self.stations:
+            print "Loading {0}".format(station)
             station_data = pd.concat(map(read_mesonet_day, all_days))
             self.data[station] = station_data.loc[self.dates]
 
-    def running_mean(self, variable):    
-        return
+    def running_mean(self, variable, window_size, sample_frequency):
+        mean_data = pd.DataFrame()
+        for station in self.stations:
+            mean_data[station] = pd.rolling_mean(self.data[station][variable], window_size)[
+                sample_frequency::sample_frequency]
+        return mean_data
+
+    def running_sd(self, variable, window_size, sample_frequency):
+        sd_data = pd.DataFrame()
+        for station in self.stations:
+            sd_data[station] = pd.rolling_std(self.data[station][variable], window_size)[
+                sample_frequency::sample_frequency]
+        return sd_data
+
+    def solar_data(self, radiation_var="SRAD"):
+        columns = ["elevation", "azimuth", "zenith", "ETRC", "CLRI"]
+        for station in self.stations:
+            loc = Location(self.station_info.loc[station, "nlat"], self.station_info.loc[station, "elon"], tz="UTC",
+                           altitude=self.station_info.loc[station, "elev"])
+            solar_data = get_solarposition(self.data[station].index, loc)
+            solar_data["EXTR"] = extraradiation(self.data[station].index, method="spencer")
+            solar_data["ETRC"] = solar_data["EXTR"] * np.cos(np.radians(solar_data["zenith"]))
+            solar_data.loc[solar_data["zenith"] > 90, "ETRC"] = 0
+            solar_data["CLRI"] = np.zeros(solar_data["ETRC"].size)
+            si = solar_data["ETRC"].values > 0
+            solar_data["CLRI"][si] = self.data[station][radiation_var].values[si] / solar_data["ETRC"].values[si]
+            solar_data["CLRI"][solar_data["ETRC"] == 0] = np.nan
+            self.data[station][columns] = solar_data[columns]
 
 if __name__ == "__main__":
     main()
