@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 import pandas as pd
 import numpy as np
-from netCDF4 import Dataset, date2num
-from datetime import datetime, timedelta
+from netCDF4 import Dataset, date2num, stringtochar
+from datetime import datetime
 from pvlib.solarposition import get_solarposition
 from pvlib.irradiance import extraradiation
 from pvlib.location import Location
 import matplotlib.pyplot as plt
+import os
+
 
 def main():
     start_date = datetime(1994, 1, 1, 23, 0)
@@ -27,9 +29,14 @@ def main():
     def plot_kt_sd_hist(clearness_index_sd, site):
         ci_counts, bx, by = np.histogram2d(clearness_index_sd.index.hour, clearness_index_sd[site],
                                            bins=(np.arange(11.5, 25.5), np.arange(0, 1.0, 0.02)))
+        hours = np.arange(13, 24)
+        hour_dists = []
+        for hour in hours:
+            hour_dists.append(clearness_index_sd.loc[clearness_index_sd.index.hour == hour, site])
         plt.figure(figsize=(8, 8))
         plt.pcolormesh(bx[:-1], by[:-1], np.ma.array(ci_counts.T, mask=ci_counts.T == 0), vmin=0,
-                       cmap=plt.get_cmap("Reds", 10))
+                       cmap=plt.get_cmap("Reds", 20))
+        plt.boxplot(hour_dists, positions=hours)
         plt.xlim(12.5,23.5)
         plt.ylim(0, 0.3)
         plt.colorbar()
@@ -53,8 +60,22 @@ class MesonetRawData(object):
                                       freq="5min")
         self.stations = stations
         self.data = {}
+        self.averaged_data = {}
         self.path = path
         self.station_info = pd.read_csv(station_info_file, index_col="stid")
+        self.units = dict(RELH="%",
+                          TAIR="degrees Celsius",
+                          WSPD="m s-1",
+                          WVEC="m s-1",
+                          WDIR="degrees",
+                          WDSD="degrees",
+                          WSSD="m s-1",
+                          WMAX="m s-1",
+                          RAIN="mm",
+                          PRES="mb",
+                          SRAD="W m-2",
+                          TA9M="degrees Celsius",
+                          WS2M="m s-1")
 
     def load_data(self):
         def read_mesonet_day(date):
@@ -76,6 +97,7 @@ class MesonetRawData(object):
         for station in self.stations:
             mean_data[station] = pd.rolling_mean(self.data[station][variable], window_size)[
                 sample_frequency::sample_frequency]
+        self.averaged_data[variable + "_Mean"] = mean_data
         return mean_data
 
     def running_sd(self, variable, window_size, sample_frequency):
@@ -83,6 +105,7 @@ class MesonetRawData(object):
         for station in self.stations:
             sd_data[station] = pd.rolling_std(self.data[station][variable], window_size)[
                 sample_frequency::sample_frequency]
+        self.averaged_data[variable + "_SD"] = sd_data
         return sd_data
 
     def solar_data(self, radiation_var="SRAD"):
@@ -100,5 +123,39 @@ class MesonetRawData(object):
             solar_data["CLRI"][solar_data["ETRC"] == 0] = np.nan
             self.data[station][columns] = solar_data[columns]
 
+    def averaged_data_to_netcdf(self, out_path, time_units="seconds since 1970-01-01 00 UTC"):
+        for variable in sorted(self.averaged_data.keys()):
+            unique_dates = np.unique(self.averaged_data[variable].index.date)
+            for date in unique_dates:
+                filename = out_path + "mesonet.{0}.nc".format(date.strftime("%Y%m%d"))
+                if os.access(filename, os.R_OK):
+                    mode = "r+"
+                else:
+                    mode = "w"
+                ds = Dataset(filename, mode=mode)
+                if mode == "w":
+                    ds.createDimension("recNum", size=None)
+                    ds.createDimension("timesPerDay", size=24)
+                    ds.createDimension("stationNameSize", size=4)
+                    c_time = ds.createVariable("creation_time", "f8")
+                    c_time.assignValue(date2num(datetime.utcnow(), time_units))
+                    c_time.units = time_units
+                    c_time.long_name = "time at which file was created"
+                    obs_times = ds.createVariable("time_nominal", "f8", ("timesPerDay", ))
+                    obs_times.long_name = "observation time"
+                    obs_times.units = time_units
+                    valid_dates = self.averaged_data[variable].index[
+                        self.averaged_data[variable].index.date == date].to_pydatetime()
+                    obs_times[:] = date2num(valid_dates, time_units)
+                    station_names = ds.createVariable("stationName", "S1", ("recNum", "stationNameSize"))
+                    station_names[:] = stringtochar(self.averaged_data[variable].columns.values)
+
+                ds_var = ds.createVariable(variable, "f4", ("recNum", "timesPerDay"))
+                date_indices = self.averaged_data[variable].index.date == date
+                ds_var[:] = self.averaged_data[variable].loc[date_indices, :].values.T
+                ds_var.long_name = variable
+                ds_var.units = self.units[variable.split("_")[0]]
+                ds.close()
+        return
 if __name__ == "__main__":
     main()
