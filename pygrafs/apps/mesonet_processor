@@ -52,6 +52,20 @@ def main():
     return
 
 
+def aggregate_mesonet_data(start_date, end_date, stations, av_variables, path, station_info_file, nc_path):
+    try:
+        mrd = MesonetRawData(start_date, end_date, stations, path, station_info_file)
+        mrd.load_data()
+        mrd.solar_data(radiation_var="SRAD")
+        for variable in av_variables:
+            mrd.running_mean(variable, 12, 12)
+            mrd.running_sd(variable, 12, 12)
+        mrd.averaged_data_to_netcdf(nc_path)
+    except Exception as e:
+        raise e
+    return
+
+
 class MesonetRawData(object):
     def __init__(self, start_date, end_date, stations, path, station_info_file):
         self.start_date = start_date
@@ -129,7 +143,7 @@ class MesonetRawData(object):
             for date in unique_dates:
                 filename = out_path + "mesonet.{0}.nc".format(date.strftime("%Y%m%d"))
                 if os.access(filename, os.R_OK):
-                    mode = "r+"
+                    mode = "a"
                 else:
                     mode = "w"
                 ds = Dataset(filename, mode=mode)
