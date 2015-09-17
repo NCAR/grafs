@@ -53,10 +53,10 @@ class ObsSite(object):
         # Load variable data from file
         all_data = self.file_obj.variables[variable][:]
         # Determine which rows in the data have valid observations
-        valid_rows = np.unique(np.nonzero(all_data < all_data.max())[0])
+        valid_rows = np.unique(np.nonzero(all_data < 1e30)[0])
         # Mask out data values that are invalid
         data = np.ma.array(all_data[valid_rows],
-                           mask=all_data[valid_rows] == all_data.max())
+                           mask=all_data[valid_rows] > 1e30)
         # Get valid stations
         stations = self.file_obj.variables['site_list'][valid_rows]
         station_codes = self.meta_data.loc[stations, "solar_code"].values.astype(int)

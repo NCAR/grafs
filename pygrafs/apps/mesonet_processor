@@ -2,15 +2,18 @@
 import pandas as pd
 import numpy as np
 from netCDF4 import Dataset, date2num, stringtochar
-from datetime import datetime
+from datetime import datetime, timedelta
 from pvlib.solarposition import get_solarposition
 from pvlib.irradiance import extraradiation
 from pvlib.location import Location
 import matplotlib.pyplot as plt
+from multiprocessing import Pool
+import traceback
+import argparse
 import os
 
 
-def main():
+def plot_solar_variability():
     start_date = datetime(1994, 1, 1, 23, 0)
     end_date = datetime(1999,12, 31, 23, 0)
     stations = ["NORM", "SPEN", "MTHE", "BEAV"]
@@ -52,16 +55,51 @@ def main():
     return
 
 
-def aggregate_mesonet_data(start_date, end_date, stations, av_variables, path, station_info_file, nc_path):
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s", "--start", required=True, help="Start Date")
+    parser.add_argument("-e", "--end", required=True, help="End Date")
+    parser.add_argument("-v", "--var", required=True, help="Variables to process")
+    parser.add_argument("-m", "--mesopath", required=True, help="Path to Mesonet files")
+    parser.add_argument("-p", "--procs", default=1, type=int, help="Number of processors")
+    parser.add_argument("-t", "--meta", required=True, help="Path to metadata files")
+    parser.add_argument("-o", "--out", required=True, help="Path to output netCDF files")
+    args = parser.parse_args()
+    variables = args.var.split(",")
+    pool = Pool(args.procs)
+    dates = pd.DatetimeIndex(start=args.start, end=args.end, freq="1D")
+    stations, station_numbers = get_valid_station_data(args.meta)
+    print stations
+    print station_numbers
+    for date in dates.to_pydatetime():
+        pool.apply_async(aggregate_mesonet_data, (date - timedelta(hours=1), date + timedelta(hours=23), stations,
+                                                  variables, args.mesopath, args.meta + "geoinfo.csv", args.out,
+                                                  station_numbers))
+    pool.close()
+    pool.join()
+    return
+
+
+def get_valid_station_data(meta_path):
+    mesonet_meta = pd.read_csv(meta_path + "geoinfo.csv")
+    grafs_meta = pd.read_csv(meta_path + "int_obs_sites.asc", sep=";")
+    combined = pd.merge(mesonet_meta, grafs_meta, how="left", left_on="stid", right_on="icao")
+    combined = combined.dropna()
+    return combined["stid"].values, combined["stationNumber"].values
+
+
+def aggregate_mesonet_data(start_date, end_date, stations, av_variables, path, station_info_file, nc_path,
+                           station_numbers, radiation_var="SRAD"):
     try:
         mrd = MesonetRawData(start_date, end_date, stations, path, station_info_file)
         mrd.load_data()
-        mrd.solar_data(radiation_var="SRAD")
+        mrd.solar_data(radiation_var=radiation_var)
         for variable in av_variables:
             mrd.running_mean(variable, 12, 12)
             mrd.running_sd(variable, 12, 12)
-        mrd.averaged_data_to_netcdf(nc_path)
+        mrd.averaged_data_to_netcdf(nc_path, station_numbers=station_numbers)
     except Exception as e:
+        print(traceback.format_exc())
         raise e
     return
 
@@ -101,8 +139,8 @@ class MesonetRawData(object):
             data.index = pd.TimeSeries(pd.Timestamp(date) + pd.TimedeltaIndex(data["TIME"], unit="m"))
             return data
         all_days = np.unique(self.dates.date)
+        print "Loading", all_days
         for station in self.stations:
-            print "Loading {0}".format(station)
             station_data = pd.concat(map(read_mesonet_day, all_days))
             self.data[station] = station_data.loc[self.dates]
 
@@ -137,7 +175,8 @@ class MesonetRawData(object):
             solar_data["CLRI"][solar_data["ETRC"] == 0] = np.nan
             self.data[station][columns] = solar_data[columns]
 
-    def averaged_data_to_netcdf(self, out_path, time_units="seconds since 1970-01-01 00 UTC"):
+    def averaged_data_to_netcdf(self, out_path, time_units="seconds since 1970-01-01 00 UTC", station_numbers=None):
+        print "Saving", self.averaged_data.values()[0].index[0]
         for variable in sorted(self.averaged_data.keys()):
             unique_dates = np.unique(self.averaged_data[variable].index.date)
             for date in unique_dates:
@@ -162,8 +201,13 @@ class MesonetRawData(object):
                         self.averaged_data[variable].index.date == date].to_pydatetime()
                     obs_times[:] = date2num(valid_dates, time_units)
                     station_names = ds.createVariable("stationName", "S1", ("recNum", "stationNameSize"))
-                    station_names[:] = stringtochar(self.averaged_data[variable].columns.values)
-
+                    print self.averaged_data[variable].columns.values
+                    station_names[:] = stringtochar(self.averaged_data[variable].columns.values.astype("S4"))
+                    if station_numbers is not None:
+                        site_list = ds.createVariable("site_list", "i4", ("recNum",))
+                        site_list.long_name = "DICAST Identification Number"
+                        site_list.reference = "DICAST Site Database"
+                        site_list[:] = station_numbers
                 ds_var = ds.createVariable(variable, "f4", ("recNum", "timesPerDay"))
                 date_indices = self.averaged_data[variable].index.date == date
                 ds_var[:] = self.averaged_data[variable].loc[date_indices, :].values.T
