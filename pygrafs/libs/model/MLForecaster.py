@@ -42,32 +42,37 @@ class MLForecaster(object):
                 self.all_forecasts[forecast_file] = pd.read_hdf(forecast_file, "data")
                 self.all_forecasts[forecast_file].replace(np.nan, 0)
 
-    def load_model(self, model_file):
+    def load_model(self, model_path, model_name):
         """
         Load trained machine learning model from pickle file.
 
         :param model_file: Name of the model file
         """
-        model_name = model_file.split('/')[-1].replace(".pkl","")
-        with open(model_file) as model_file_obj:
-            self.models[model_name] = pickle.load(model_file_obj)
+        model_files = sorted(glob(model_path + model_name + ".pkl"))
+        if len(model_files) == 1:
+            with open(model_files[0]) as model_file_obj:
+                self.models[model_name] = pickle.load(model_file_obj)
         return
 
-    def make_predictions(self, pred_columns, pred_path, pred_format, units=None):
+    def make_predictions(self, pred_columns):
         """
         Apply forecast data to the machine learning models and generate predictions
 
         :param pred_columns: Columns from input data to be included as meta data in output files
-        :param pred_path: Path to directory containing prediction files.
-        :param pred_format: format of prediction output files
         :return:
         """
+        all_predictions = {}
         for forecast_file, forecast_data in self.all_forecasts.iteritems():
             sys.stdout.write("\rMake Predictions: " + forecast_file.split("/")[-1])
             sys.stdout.flush()
             predictions = forecast_data.loc[:, pred_columns]
             for model_name, model in self.models.iteritems():
                 predictions[model_name] = model.predict(forecast_data.ix[:, self.input_columns])
+            all_predictions[forecast_file] = predictions
+        return all_predictions
+
+    def save_predictions(self, all_predictions, pred_path, pred_format, units=None):
+        for forecast_file, predictions in all_predictions.iteritems():
             if pred_format.lower() == "csv":
                 filename = pred_path + forecast_file.split("/")[-1]
                 predictions.to_csv(filename, index=False, float_format="%0.3f")
@@ -92,9 +97,8 @@ class MLForecaster(object):
                     if units is not None:
                         mod.units = units
                 output.close()
-        return
 
-    def predictions_to_grid(self, predictions):
+    def grid_predictions(self, predictions):
         """
         Convert flat DataFrame of predictions to numpy array grids.
 
@@ -103,7 +107,7 @@ class MLForecaster(object):
         """
         forecast_hours = predictions['forecast_hour'].unique()
         row_size = predictions['row'].max() + 1
-        col_size= predictions['col'].max() + 1
+        col_size = predictions['col'].max() + 1
         grid_predictions = {}
         model_names = self.models.keys()
         for model_name in model_names:

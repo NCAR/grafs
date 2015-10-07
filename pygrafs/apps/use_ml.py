@@ -117,7 +117,8 @@ def forecast_models(config):
     mlf.load_data(exp=config.expression)
     for model_name in config.model_names:
         mlf.load_model(config.ml_model_path + model_name + ".pkl")
-    mlf.make_predictions(config.pred_columns, config.pred_path, config.pred_format)
+    all_predictions = mlf.make_predictions(config.pred_columns,)
+    mlf.save_predictions(all_predictions, config.pred_path, config.pred_format)
     return
 
 if __name__ == "__main__":

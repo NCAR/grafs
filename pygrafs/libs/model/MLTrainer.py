@@ -1,9 +1,8 @@
 from glob import glob
-import cPickle as pickle
+import cPickle
 import numpy as np
 import pandas as pd
 import sys
-from collections import OrderedDict
 
 
 class MLTrainer(object):
@@ -16,13 +15,12 @@ class MLTrainer(object):
     :param output_column:
     :return:
     """
-    def __init__(self, data_path, data_format, input_columns, output_column, diff_column=None):
+    def __init__(self, data_path, data_format, input_columns, output_column):
         self.data_path = data_path
         self.data_format = data_format
         self.input_columns = input_columns
         self.output_column = output_column
-        self.models = OrderedDict()
-        self.diff_column = diff_column
+        self.models = {}
         self.all_data = None
         return
 
@@ -56,6 +54,8 @@ class MLTrainer(object):
             indices = np.random.choice(self.all_data.shape[0], num_samples, replace=replace)
             sampled_data = self.all_data.ix[indices, :]
             sampled_data.reset_index(inplace=True)
+        else:
+            sampled_data = None
         return sampled_data
 
     def train_model(self, model_name, model_obj):
@@ -93,8 +93,6 @@ class MLTrainer(object):
             model_obj.fit(self.all_data.ix[train_indices, self.input_columns],
                           self.all_data.ix[train_indices, self.output_column])
             predictions[test_indices] = model_obj.predict(self.all_data.ix[test_indices, self.input_columns])
-            if self.diff_column is not None:
-                predictions[test_indices] = self.all_data[self.diff_column].values[test_indices] - predictions[test_indices]
             self.models[model_name] = model_obj
             self.show_feature_importance()
         return predictions
@@ -134,11 +132,11 @@ class MLTrainer(object):
         :return:
         """
         for model_name, model_obj in self.models.iteritems():
-            if hasattr(model_obj,"feature_importances_"):
+            if hasattr(model_obj, "feature_importances_"):
                 scores = model_obj.feature_importances_
                 rankings = np.argsort(scores)[::-1]
                 print(model_name)
-                for i,r in enumerate(rankings[0:num_rankings]):
+                for i, r in enumerate(rankings[0:num_rankings]):
                     print("{0:d}. {1}: {2:0.3f}".format(i + 1, self.input_columns[r], scores[r]))
     
     def save_models(self, model_path):
@@ -150,5 +148,5 @@ class MLTrainer(object):
         """
         for model_name, model_obj in self.models.iteritems():
             with open(model_path + model_name + ".pkl", "w") as model_file:
-                pickle.dump(model_obj, model_file, pickle.HIGHEST_PROTOCOL)
+                cPickle.dump(model_obj, model_file, cPickle.HIGHEST_PROTOCOL)
         return
