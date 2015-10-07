@@ -87,11 +87,18 @@ def load_obs(config, dates):
     all_obs = {}
     for date in dates:
         obs_files = sorted(glob(config.obs_dir + date.strftime("/%Y%m%d/*.nc")))
+        if len(obs_files) == 0:
+            obs_files = sorted(glob(config.obs_dir + date.strftime("*.%Y%m%d.nc")))
         if len(obs_files) > 0:
             all_obs[date] = ObsSite(obs_files[0], meta_file=config.site_list_file)
-            all_obs[date].load_data(config.obs_var)
-            all_obs[date].filter_by_location(config.obs_var, config.x_range, config.y_range)
-            print("Num obs: {0:d}".format(all_obs[date].data[config.obs_var].shape[0]))
+            if type(config.obs_var) == str:
+                obs_vars = [config.obs_var]
+            else:
+                obs_vars = config.obs_var
+            for obs_var in obs_vars:
+                all_obs[date].load_data(obs_var)
+                all_obs[date].filter_by_location(obs_var, config.x_range, config.y_range)
+                print("Num obs: {0:d}".format(all_obs[date].data[obs_var].shape[0]))
             all_obs[date].close()
 
     return all_obs
@@ -205,10 +212,18 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                                                                                       station_indices[:, 0],
                                                                                       station_indices[:, 1]]
                         # Match model output instances with observations
-                        merged_data_obs = pd.merge(merged_data_step, all_obs[vt.date()].data[config.obs_var],
-                                                   how="inner", on=['station', 'valid_date'])
-                        merged_data_obs['add_diff'] = merged_data_obs[config.obs_var + "_f"] -\
-                            merged_data_obs[config.obs_var]
+                        if type(config.obs_var) == str:
+                            merged_data_obs = pd.merge(merged_data_step, all_obs[vt.date()].data[config.obs_var],
+                                                       how="inner", on=['station', 'valid_date'])
+                        else:
+                            merged_data_obs = None
+                            for obs_var in config.obs_var:
+                                if merged_data_obs is None:
+                                    merged_data_obs = pd.merge(merged_data_step, all_obs[vt.date()].data[obs_var],
+                                                               how="inner", on=['station', 'valid_date'])
+                                else:
+                                    merged_data_obs = pd.merge(merged_data_obs, all_obs[vt.date()].data[obs_var].loc[:, ['station', 'valid_date', obs_var]],
+                                                               how="inner", on=['station', 'valid_date'])
                         if merged_data is None:
                             merged_data = merged_data_obs
                         else:

@@ -59,13 +59,23 @@ class ObsSite(object):
                            mask=all_data[valid_rows] > 1e30)
         # Get valid stations
         stations = self.file_obj.variables['site_list'][valid_rows]
-        station_codes = self.meta_data.loc[stations, "solar_code"].values.astype(int)
+        if "solar_code" in self.meta_data.columns:
+            station_codes = self.meta_data.loc[stations, "solar_code"].values.astype(int)
+        else:
+            station_codes = None
         self.station_data = self.meta_data.loc[stations]
         flat_dict = {'station': [], 'valid_date': [], variable: []}
 
         # Loop through all data values and add metadata and data values to data structure
         for (s, d), v in np.ndenumerate(data):
-            if station_codes[s] == 8:
+            if station_codes is not None and station_codes[s] == 8:
+                flat_dict['station'].append(stations[s])
+                flat_dict['valid_date'].append(self.times[d])
+                if v > 1e30:
+                    flat_dict[variable].append(np.nan)
+                else:
+                    flat_dict[variable].append(v)
+            else:
                 flat_dict['station'].append(stations[s])
                 flat_dict['valid_date'].append(self.times[d])
                 if v > 1e30:
