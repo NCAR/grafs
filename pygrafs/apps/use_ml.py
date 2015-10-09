@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 
 import pandas as pd
@@ -57,15 +58,10 @@ def cross_validate_models(config):
     :param config: Config object containing model parameter information.
     :return:
     """
-    if hasattr(config, 'diff_column'):
-        diff_column = config.diff_column
-    else:
-        diff_column = None
     mlt = MLTrainer(config.data_path,
                     config.data_format,
                     config.input_columns,
-                    config.output_column,
-                    diff_column=diff_column)
+                    config.output_column)
     if hasattr(config, 'query'):
         mlt.load_data_files(query=config.query)
     else:
@@ -84,11 +80,8 @@ def cross_validate_models(config):
 
 
 def site_validation(config):
-    diff_column = None
     query = None
     expression = ""
-    if hasattr(config, "diff_column"):
-        diff_column = config.diff_column
     if hasattr(config, "query"):
         query = config.query
     if hasattr(config, "expression"):
@@ -96,8 +89,7 @@ def site_validation(config):
     mlt = MLTrainer(config.data_path,
                     config.data_format,
                     config.input_columns,
-                    config.output_column,
-                    diff_column=diff_column)
+                    config.output_column)
     mlt.load_data_files(expression, query)
     predictions = mlt.site_validation(config.model_names, config.model_objects, config.pred_columns, config.split_day)
     predictions.to_csv(config.site_pred_file, float_format="%0.3f", na_rep="nan", index=False)
