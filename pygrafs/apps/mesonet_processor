@@ -127,7 +127,12 @@ class MesonetRawData(object):
                           PRES="mb",
                           SRAD="W m-2",
                           TA9M="degrees Celsius",
-                          WS2M="m s-1")
+                          WS2M="m s-1",
+                          CLRI="",
+                          ETRC="W m-2",
+                          elevation="degrees",
+                          azimuth="degrees",
+                          zenith="degrees")
 
     def load_data(self):
         def read_mesonet_day(date):
