@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from pygrafs.libs.data.LandGrid import LandGrid
 from pygrafs.libs.data.ModelGrid import ModelGrid
+from pygrafs.libs.data.SolarData import SolarData
 from pygrafs.libs.data.ObsSite import ObsSite
 from pygrafs.libs.util.Config import Config
 import traceback
@@ -69,9 +70,9 @@ def create_forecast_data(config, date):
 
         if config.mode == "forecast" and model_unique_dates is not None:
             merge_model_forecasts(model_subset_grids, config)
-    except Exception:
+    except Exception as e:
         print traceback.format_exc()
-        raise
+        raise e
 
     return
 
@@ -157,6 +158,12 @@ def get_land_grid_data(config, interp_lons, interp_lats):
     return land_grids
 
 
+def get_solar_grid_data(times, lon_grid, lat_grid, elevations=None):
+    solar_data = SolarData(times, lon_grid, lat_grid, elevations)
+    solar_positions = solar_data.solar_position()
+    return solar_positions
+
+
 def match_model_obs(model_grids, all_obs, config, land_grids=None):
     """
     Match models output at observation sites with observations.
@@ -173,6 +180,7 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
             unique_dates = model_grid[model_vars[0]].get_unique_dates()
             run_date = model_grid[model_vars[0]].valid_times[0]
             date_steps = np.array([t.date() for t in model_grid[model_vars[0]].times])
+            solar_data = get_solar_grid_data(model_grid.times, model_grid.x, model_grid.y)
             for obs_date in sorted(all_obs.keys()):
                 if obs_date in unique_dates:
                     station_indices = np.zeros((all_obs[obs_date].station_data.shape[0], 2), dtype=int)
@@ -211,6 +219,8 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                                 merged_data_step[var + "_f_" + stat] = neighbor_stats[s,
                                                                                       station_indices[:, 0],
                                                                                       station_indices[:, 1]]
+                        for svar, sgrid in solar_data.iteritems():
+                            merged_data_step[svar + "_f"] = sgrid.data[mt, station_indices[:, 0], station_indices[:, 1]]
                         # Match model output instances with observations
                         if type(config.obs_var) == str:
                             merged_data_obs = pd.merge(merged_data_step, all_obs[vt.date()].data[config.obs_var],
@@ -222,7 +232,8 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                                     merged_data_obs = pd.merge(merged_data_step, all_obs[vt.date()].data[obs_var],
                                                                how="inner", on=['station', 'valid_date'])
                                 else:
-                                    merged_data_obs = pd.merge(merged_data_obs, all_obs[vt.date()].data[obs_var].loc[:, ['station', 'valid_date', obs_var]],
+                                    merged_data_obs = pd.merge(merged_data_obs, all_obs[vt.date()].data[obs_var].loc[:,
+                                                                                ['station', 'valid_date', obs_var]],
                                                                how="inner", on=['station', 'valid_date'])
                         if merged_data is None:
                             merged_data = merged_data_obs
