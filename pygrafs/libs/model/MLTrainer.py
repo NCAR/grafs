@@ -97,7 +97,7 @@ class MLTrainer(object):
             self.show_feature_importance()
         return predictions
 
-    def site_validation(self, model_names, model_objs, pred_columns, split_day):
+    def site_validation(self, model_names, model_objs, pred_columns, test_day_interval, seed=505):
         """
         Train model at random subset of sites and validate at holdout sites.
 
@@ -107,14 +107,15 @@ class MLTrainer(object):
         :param split_day: day of year used to split training and testing data
         :return: predictions and metadata in data frame
         """
+        np.random.seed(seed)
         all_sites = np.sort(self.all_data['station'].unique())
         shuffled_sites = np.random.permutation(all_sites)
         train_stations = shuffled_sites[:shuffled_sites.size / 2]
         test_stations = shuffled_sites[shuffled_sites.size/2:]
         train_data = self.all_data.loc[self.all_data['station'].isin(train_stations) &
-                                       (self.all_data['day_of_year'] < split_day)]
+                                       (self.all_data['day_of_year'] % test_day_interval != 0)]
         test_data = self.all_data.loc[self.all_data['station'].isin(test_stations) &
-                                      (self.all_data['day_of_year'] >= split_day)]
+                                      (self.all_data['day_of_year'] % test_day_interval == 0)]
         predictions = test_data[pred_columns]
         for m, model_obj in enumerate(model_objs):
             print model_names[m]

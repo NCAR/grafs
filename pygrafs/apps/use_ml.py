@@ -5,7 +5,8 @@ import pandas as pd
 from pygrafs.libs.util.Config import Config
 from pygrafs.libs.model.MLTrainer import MLTrainer
 from pygrafs.libs.model.MLForecaster import MLForecaster
-
+from pygrafs.libs.model.MLSiteForecaster import MLSiteForecaster
+from pygrafs.libs.model.MLSiteTrainer import MLSiteTrainer
 
 def main():
     parser = argparse.ArgumentParser(description="Use machine learning models on processed data.")
@@ -36,10 +37,14 @@ def train_models(config):
 
     :param config: Config object containing parameters for data and models.
     """
-    mlt = MLTrainer(config.data_path,
-                    config.data_format,
-                    config.input_columns,
-                    config.output_column)
+    if config.grouping_level == "site":
+        mlt = MLSiteTrainer(config.data_path, config.data_format,
+                            config.input_columns, config.output_column, config.site_id_column)
+    else:
+        mlt = MLTrainer(config.data_path,
+                        config.data_format,
+                        config.input_columns,
+                        config.output_column)
     if hasattr(config, 'query'):
         mlt.load_data_files(exp=config.expression, query=config.query)
     else:
@@ -86,12 +91,20 @@ def site_validation(config):
         query = config.query
     if hasattr(config, "expression"):
         expression = config.expression
-    mlt = MLTrainer(config.data_path,
-                    config.data_format,
-                    config.input_columns,
-                    config.output_column)
+    if config.grouping_level == "site":
+        mlt = MLSiteTrainer(config.data_path,
+                            config.data_format,
+                            config.input_columns,
+                            config.output_column,
+                            config.site_id_column)
+    else:
+        mlt = MLTrainer(config.data_path,
+                        config.data_format,
+                        config.input_columns,
+                        config.output_column)
     mlt.load_data_files(expression, query)
-    predictions = mlt.site_validation(config.model_names, config.model_objects, config.pred_columns, config.split_day)
+    predictions = mlt.site_validation(config.model_names, config.model_objects,
+                                      config.pred_columns, config.test_day_interval, seed=config.random_seed)
     predictions.to_csv(config.site_pred_file, float_format="%0.3f", na_rep="nan", index=False)
 
 
