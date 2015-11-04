@@ -3,7 +3,7 @@ from copy import deepcopy
 import cPickle
 import numpy as np
 import pandas as pd
-from gridding import linear_interpolation
+from gridding import rbf_interpolation
 
 
 __author__ = 'David John Gagne'
@@ -83,8 +83,9 @@ class MLSiteTrainer(MLTrainer):
                 for hour in np.unique(evaluation_data["forecast_hour"].values):
                     pred_rows = (test_data["run_day_of_year"] == day) & (test_data["forecast_hour"] == hour)
                     eval_rows = (evaluation_data["run_day_of_year"] == day) & (evaluation_data["forecast_hour"] == hour)
-                    predictions.loc[pred_rows, model_names[m]] = linear_interpolation(site_predictions.loc[eval_rows, 
-                                                                                      [x_name, y_name, model_names[m]]],
-                                                                                      predictions.loc[pred_rows], y_name, x_name)
+                    predictions.loc[pred_rows, model_names[m]] = rbf_interpolation(site_predictions.loc[eval_rows,
+                                                                                   [x_name, y_name, model_names[m]]],
+                                                                                   predictions.loc[pred_rows],
+                                                                                   y_name, x_name)
         return predictions
 
