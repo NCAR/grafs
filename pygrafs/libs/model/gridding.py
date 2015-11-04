@@ -22,9 +22,5 @@ def linear_interpolation(predictions, grid_coordinates, y_name, x_name):
 
 def rbf_interpolation(predictions, grid_coordinates, y_name, x_name, method="gaussian"):
     rbf = Rbf(predictions[y_name].values, predictions[x_name].values, predictions.ix[:, -1], method=method)
-    if len(grid_coordinates[x_name].shape) == 1:
-        y_grid, x_grid = np.meshgrid(grid_coordinates[y_name], grid_coordinates[x_name])
-        grid_predictions = rbf(y_grid.ravel(), x_grid.ravel())
-    else:
-        grid_predictions = rbf(grid_coordinates[y_name].ravel(), grid_coordinates[x_name].ravel())
+    grid_predictions = rbf(grid_coordinates[y_name].ravel(), grid_coordinates[x_name].ravel())
     return grid_predictions
