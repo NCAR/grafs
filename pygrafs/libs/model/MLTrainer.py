@@ -97,7 +97,8 @@ class MLTrainer(object):
             self.show_feature_importance()
         return predictions
 
-    def site_validation(self, model_names, model_objs, pred_columns, test_day_interval, seed=505):
+    def site_validation(self, model_names, model_objs, pred_columns, test_day_interval, seed=505, y_name="lat",
+                        x_name="lon"):
         """
         Train model at random subset of sites and validate at holdout sites.
 
@@ -111,12 +112,13 @@ class MLTrainer(object):
         all_sites = np.sort(self.all_data['station'].unique())
         shuffled_sites = np.random.permutation(all_sites)
         train_stations = shuffled_sites[:shuffled_sites.size / 2]
-        print train_stations
         test_stations = shuffled_sites[shuffled_sites.size/2:]
+        run_day_of_year = pd.DatetimeIndex(self.all_data["run_date"]).dayofyear
+
         train_data = self.all_data.loc[self.all_data['station'].isin(train_stations) &
-                                       (self.all_data['day_of_year'] % test_day_interval != 0)]
+                                       (run_day_of_year % test_day_interval != 0)]
         test_data = self.all_data.loc[self.all_data['station'].isin(test_stations) &
-                                      (self.all_data['day_of_year'] % test_day_interval == 0)]
+                                      (run_day_of_year % test_day_interval == 0)]
         predictions = test_data[pred_columns]
         for m, model_obj in enumerate(model_objs):
             print model_names[m]
@@ -124,7 +126,8 @@ class MLTrainer(object):
             predictions[model_names[m]] = model_obj.predict(test_data.loc[:, self.input_columns])
             self.models[model_names[m]] = model_obj
         self.show_feature_importance()
-        return predictions
+        train_station_locations = train_data[["station", x_name, y_name]].drop_duplicates()
+        return predictions, train_station_locations
 
     def show_feature_importance(self, num_rankings=10):
         """

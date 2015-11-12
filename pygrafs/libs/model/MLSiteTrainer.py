@@ -3,7 +3,7 @@ from copy import deepcopy
 import cPickle
 import numpy as np
 import pandas as pd
-from gridding import rbf_interpolation
+from gridding import nearest_neighbor
 
 
 __author__ = 'David John Gagne'
@@ -83,9 +83,10 @@ class MLSiteTrainer(MLTrainer):
                 for hour in np.unique(evaluation_data["forecast_hour"].values):
                     pred_rows = (test_data["run_day_of_year"] == day) & (test_data["forecast_hour"] == hour)
                     eval_rows = (evaluation_data["run_day_of_year"] == day) & (evaluation_data["forecast_hour"] == hour)
-                    predictions.loc[pred_rows, model_names[m]] = rbf_interpolation(site_predictions.loc[eval_rows,
-                                                                                   [x_name, y_name, model_names[m]]],
-                                                                                   predictions.loc[pred_rows],
-                                                                                   y_name, x_name)
-        return predictions
+                    predictions.loc[pred_rows, model_names[m]] = nearest_neighbor(site_predictions.loc[eval_rows,
+                                                                                  [x_name, y_name, model_names[m]]],
+                                                                                  predictions.loc[pred_rows],
+                                                                                  y_name, x_name)
+        train_station_locations = train_data[["station", x_name, y_name]].drop_duplicates()
+        return predictions, train_stations, train_station_locations
 
