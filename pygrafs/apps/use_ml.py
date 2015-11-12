@@ -103,7 +103,7 @@ def site_validation(config):
                         config.input_columns,
                         config.output_column)
     mlt.load_data_files(expression, query)
-    predictions, train_station_locations= mlt.site_validation(config.model_names, config.model_objects,
+    predictions, train_station_locations = mlt.site_validation(config.model_names, config.model_objects,
                                                               config.pred_columns, config.test_day_interval,
                                                               seed=config.random_seed)
     predictions.to_csv(config.site_pred_file, float_format="%0.3f", na_rep="nan", index=False)
