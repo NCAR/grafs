@@ -111,6 +111,7 @@ class MLTrainer(object):
         all_sites = np.sort(self.all_data['station'].unique())
         shuffled_sites = np.random.permutation(all_sites)
         train_stations = shuffled_sites[:shuffled_sites.size / 2]
+        print train_stations
         test_stations = shuffled_sites[shuffled_sites.size/2:]
         train_data = self.all_data.loc[self.all_data['station'].isin(train_stations) &
                                        (self.all_data['day_of_year'] % test_day_interval != 0)]
