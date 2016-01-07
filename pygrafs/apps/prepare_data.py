@@ -135,6 +135,7 @@ def load_model_forecasts(config, date):
                     valid_datetimes[model_file]["all"] = np.intersect1d(valid_datetimes[model_file]["all"],
                                                                         valid_datetimes[model_file][var])
             model_grid.close()
+            del model_grid
     else:
         print(config.model_dir + date.strftime("/%Y%m%d/*.nc"))
         print(model_files)
@@ -180,7 +181,9 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
             unique_dates = model_grid[model_vars[0]].get_unique_dates()
             run_date = model_grid[model_vars[0]].valid_times[0]
             date_steps = np.array([t.date() for t in model_grid[model_vars[0]].times])
-            solar_data = get_solar_grid_data(model_grid.times, model_grid.x, model_grid.y)
+            solar_data = get_solar_grid_data(model_grid[model_vars[0]].times,
+                                             model_grid[model_vars[0]].x,
+                                             model_grid[model_vars[0]].y)
             for obs_date in sorted(all_obs.keys()):
                 if obs_date in unique_dates:
                     station_indices = np.zeros((all_obs[obs_date].station_data.shape[0], 2), dtype=int)
