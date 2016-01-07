@@ -1,10 +1,11 @@
 from pvlib.solarposition import get_solarposition
 from pvlib.irradiance import extraradiation
 from pvlib.location import Location
+from pvlib.spa import solar_position_numpy
 from ModelGrid import ModelGridSubset
 import numpy as np
 import pandas as pd
-
+from numba import jit
 
 class SolarData(object):
     def __init__(self, times, lon_grid, lat_grid, elevations=None):
@@ -34,3 +35,37 @@ class SolarData(object):
             solar_grids[pos_var] = ModelGridSubset(pos_var, position_data[pos_var],
                                                    self.times, self.lat_grid, self.lon_grid)
         return solar_grids
+
+
+def make_solar_position_grid(times, lon_grid, lat_grid, elevations):
+    position_data = {}
+    position_variables = ["elevation", "zenith", "azimuth", "ETRC"]
+    for pos_var in position_variables:
+        position_data[pos_var] = np.zeros((times.size, lon_grid.shape[0], lon_grid.shape[1]), dtype=float)
+    pressure = 1013.25
+    delta_t = 67.0
+    atmos_refract = 0.5667
+    temp = 12
+    etr = extraradiation(times, method="pyephem").values
+    for (r, c), l in np.ndenumerate(lon_grid):
+        results = solar_position_numpy(times.astype(np.int64), lat_grid[r, c], lon_grid[r, c], elevations[r, c],
+                                       pressure,
+                                       temp, delta_t,
+                                       atmos_refract, 1)
+        position_data["elevation"][:, r, c] = results[2]
+        position_data["zenith"][:, r, c] = results[0]
+        position_data["azimuth"][:, r, c] = results[4]
+        position_data["ETRC"][:, r, c] = etr * np.cos(np.radians(results[0]))
+    solar_grids = {}
+    position_data["ETRC"][position_data["ETRC"] < 0] = 0
+    for pos_var in position_variables:
+        solar_grids[pos_var] = ModelGridSubset(pos_var, position_data[pos_var],
+                                               times, lat_grid, lon_grid, times[0])
+    return position_data
+
+if __name__ == "__main__":
+    times = pd.DatetimeIndex(start="2015-06-04", end="2015-06-05 12:00", freq="1H")
+    lon_grid, lat_grid = np.meshgrid(np.arange(-110, -90, 0.5), np.arange(30, 40, 0.5))
+    elevations = np.zeros(lon_grid.shape)
+    pos_data = make_solar_position_grid(times, lon_grid, lat_grid, elevations)
+    print pos_data["ETRC"].max(), pos_data["ETRC"].min()
