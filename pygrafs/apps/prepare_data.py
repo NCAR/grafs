@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from pygrafs.libs.data.LandGrid import LandGrid
 from pygrafs.libs.data.ModelGrid import ModelGrid
-from pygrafs.libs.data.SolarData import SolarData
+from pygrafs.libs.data.SolarData import make_solar_position_grid
 from pygrafs.libs.data.ObsSite import ObsSite
 from pygrafs.libs.util.Config import Config
 import traceback
@@ -59,7 +59,7 @@ def create_forecast_data(config, date):
             print(model_subset_grids[model_file].keys())
             if model_unique_dates is None:
                 model_unique_dates = model_subset_grids[model_file].values()[0].get_unique_dates()
-                print "Model unique dates", model_unique_dates
+                print("Model unique dates", model_unique_dates)
             else:
                 model_unique_dates = np.union1d(model_unique_dates,
                                                 model_subset_grids[model_file].values()[0].get_unique_dates())
@@ -117,7 +117,7 @@ def load_model_forecasts(config, date):
     valid_datetimes = {}
     if len(model_files) > 0:
         for model_file in model_files:
-            print(model_file)
+            print("Loading " + model_file)
             model_grid = ModelGrid(model_file)
             model_subset_grids[model_file] = {}
             valid_datetimes[model_file] = {}
@@ -160,8 +160,9 @@ def get_land_grid_data(config, interp_lons, interp_lats):
 
 
 def get_solar_grid_data(times, lon_grid, lat_grid, elevations=None):
-    solar_data = SolarData(times, lon_grid, lat_grid, elevations)
-    solar_positions = solar_data.solar_position()
+    if elevations is None:
+        elevations = np.zeros(lon_grid.shape)
+    solar_positions = make_solar_position_grid(times, lon_grid, lat_grid, elevations)
     return solar_positions
 
 
@@ -181,10 +182,12 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
             unique_dates = model_grid[model_vars[0]].get_unique_dates()
             run_date = model_grid[model_vars[0]].init_time
             date_steps = np.array([t.date() for t in model_grid[model_vars[0]].times])
+            print("Get Solar Positions")
             solar_data = get_solar_grid_data(model_grid[model_vars[0]].times,
                                              model_grid[model_vars[0]].x,
                                              model_grid[model_vars[0]].y)
             for obs_date in sorted(all_obs.keys()):
+                print(obs_date)
                 if obs_date in unique_dates:
                     station_indices = np.zeros((all_obs[obs_date].station_data.shape[0], 2), dtype=int)
                     station_coords = all_obs[obs_date].station_data.loc[:, ['lon', 'lat']].values
