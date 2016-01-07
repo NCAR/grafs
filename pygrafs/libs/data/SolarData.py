@@ -3,11 +3,12 @@ from pvlib.irradiance import extraradiation
 from pvlib.location import Location
 from ModelGrid import ModelGridSubset
 import numpy as np
+import pandas as pd
 
 
 class SolarData(object):
     def __init__(self, times, lon_grid, lat_grid, elevations=None):
-        self.times = times
+        self.times = pd.DatetimeIndex(times)
         self.lon_grid = lon_grid
         self.lat_grid = lat_grid
         self.elevations = elevations
@@ -24,7 +25,7 @@ class SolarData(object):
             loc = Location(self.lat_grid[r, c], self.lon_grid[r, c], tz="UTC", altitude=elev)
             location_info = get_solarposition(self.times, loc)
             location_info["EXTR"] = extraradiation(self.times, method="pyephem")
-            location_info["ETRC"] = location_info["etr"] * np.cos(np.radians(location_info["zenith"]))
+            location_info["ETRC"] = location_info["EXTR"] * np.cos(np.radians(location_info["zenith"]))
             location_info.loc[location_info["zenith"] > 90, "ETRC"] = 0
             for pos_var in position_variables:
                 position_data[pos_var][:, r, c] = location_info[pos_var].values

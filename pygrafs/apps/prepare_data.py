@@ -112,7 +112,7 @@ def load_model_forecasts(config, date):
     :param config: Config object containing model directory, variable, and location information.
     :param date: date or datetime object containing the date of the model runs.
     """
-    model_files = sorted(glob(config.model_dir + date.strftime("/%Y%m%d/*.nc")))
+    model_files = sorted(glob(config.model_dir + date.strftime("/%Y%m%d/") + config.model_file_format))
     model_subset_grids = {}
     valid_datetimes = {}
     if len(model_files) > 0:
