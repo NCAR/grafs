@@ -179,7 +179,7 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
             merged_data = None
             model_vars = sorted(model_grid.keys())
             unique_dates = model_grid[model_vars[0]].get_unique_dates()
-            run_date = model_grid[model_vars[0]].valid_times[0]
+            run_date = model_grid[model_vars[0]].init_time
             date_steps = np.array([t.date() for t in model_grid[model_vars[0]].times])
             solar_data = get_solar_grid_data(model_grid[model_vars[0]].times,
                                              model_grid[model_vars[0]].x,
@@ -199,9 +199,8 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                         merged_data_step['run_date'] = run_date
                         merged_data_step['valid_date'] = vt
                         merged_data_step['valid_hour_utc'] = vt.hour
-                        merged_data_step['valid_hour_pst'] = (vt.hour - 8) % 24
-                        merged_data_step['forecast_hour'] = int((vt -
-                                                                 model_grid[model_vars[0]].valid_times[0]
+                        merged_data_step['valid_hour_cst'] = (vt.hour - 6) % 24
+                        merged_data_step['forecast_hour'] = int((vt - run_date
                                                                  ).total_seconds() / 3600)
                         merged_data_step['day_of_year'] = vt.timetuple().tm_yday
                         merged_data_step['sine_doy'] = np.sin(vt.timetuple().tm_yday / 365.0 * np.pi)
@@ -226,9 +225,9 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                                                                                       station_indices[:, 1]]
                         for svar, sgrid in solar_data.iteritems():
                             merged_data_step[svar + "_f"] = sgrid.data[mt, station_indices[:, 0], station_indices[:, 1]]
-                        merged_data_step["CLRI_f"] = model_grid[var].data[mt,
-                                                                          station_indices[:, 0],
-                                                                          station_indices[:, 1]] / \
+                        merged_data_step["CLRI_f"] = model_grid[config.model_ghi_var].data[mt,
+                                                                                           station_indices[:, 0],
+                                                                                           station_indices[:, 1]] / \
                                                      solar_data["ETRC"].data[mt,
                                                                              station_indices[:, 0],
                                                                              station_indices[:, 1]]

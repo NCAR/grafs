@@ -76,20 +76,16 @@ class ModelGrid(object):
         :param time_subset_type:
         """
         if variable in self.file_obj.variables.keys():
-            full_data = self.file_obj.variables[variable][:]
-            if hasattr(full_data, "mask"):
-                valid_time_indices = np.any(np.any(~full_data.mask, axis=2), axis=1)
-            else:
-                valid_time_indices = np.arange(full_data.shape[0])
-            full_data = full_data[valid_time_indices]
-            self.valid_dates = self.all_dates[valid_time_indices]
             if time_subset_type.lower() == "index":
                 start_time = time_subset[0]
                 end_time = time_subset[1] + 1
             elif time_subset_type.lower() == "coordinate":
                 # Compare given datetimes with ones generated from file metadata
-                start_time = np.where(self.valid_dates == time_subset[0])[0]
-                end_time = np.where(self.valid_dates == time_subset[1])[0] + 1
+                start_time = np.where(self.all_dates == time_subset[0])[0]
+                end_time = np.where(self.all_dates == time_subset[1])[0] + 1
+            elif time_subset_type.lower() == "hours":
+                start_time = np.where(self.all_dates == self.all_dates[0] + timedelta(hours=time_subset[0]))[0]
+                end_time = np.where(self.all_dates == self.all_dates[0] + timedelta(hours=time_subset[1]))[0] + 1
             else:
                 start_time = time_subset[0]
                 end_time = time_subset[1] + 1
@@ -106,15 +102,17 @@ class ModelGrid(object):
                 end_x = 0
                 start_y = 0
                 end_y = 0
-            subset_data = full_data[start_time:end_time,
-                                    start_y:end_y, start_x:end_x]
+            subset_data = self.file_obj.variables[variable][start_time:end_time,
+                                                            start_y:end_y,
+                                                            start_x:end_x]
 
-            subset_data[subset_data < -30000] = 0
-            subset_data[subset_data > 100000] = 0
+            subset_data[subset_data < -30000] = np.nan
+            subset_data[subset_data > 100000] = np.nan
             subset_obj = ModelGridSubset(variable, subset_data,
-                                         self.valid_dates[start_time:end_time],
+                                         self.all_dates[start_time:end_time],
                                          self.y[start_y:end_y, start_x:end_x],
-                                         self.x[start_y:end_y, start_x:end_x])
+                                         self.x[start_y:end_y, start_x:end_x],
+                                         self.all_dates[0])
         else:
             raise KeyError(variable + " not found")
         return subset_obj
@@ -150,7 +148,7 @@ class ModelGridSubset(object):
     :param y: array of y-coordinate values
     :param x: array of x-coordinate values
     """
-    def __init__(self, variable, data, times, y, x):
+    def __init__(self, variable, data, times, y, x, init_time):
         self.variable = variable
         self.data = data
         self.times = times
@@ -158,6 +156,7 @@ class ModelGridSubset(object):
         self.x = x
         self.valid_time_indices = self.get_valid_time_indices()
         self.valid_times = self.times[self.valid_time_indices]
+        self.init_time = init_time
 
     def get_point_data(self, time, y_point, x_point):
         """
