@@ -13,7 +13,7 @@ class MesonetRawData(object):
         self.start_date = start_date
         self.end_date = end_date
         self.dates = pd.DatetimeIndex(start=self.start_date, end=self.end_date,
-                                      freq="5min")
+                                      freq="5min", tz="UTC")
         self.stations = stations
         self.data = {}
         self.averaged_data = {}
@@ -45,10 +45,9 @@ class MesonetRawData(object):
             data = pd.read_table(filename, sep="[ ]{1,5}", skiprows=2, engine="python",
                                  index_col=False,
                                  na_values=np.arange(-999, -989, 1).tolist() + ["   "])
-            data.index = pd.TimeSeries(pd.Timestamp(date) + pd.TimedeltaIndex(data["TIME"], unit="m"))
+            data.index = pd.DatetimeIndex(pd.Timestamp(date) + pd.TimedeltaIndex(data["TIME"], unit="m"), tz="UTC")
             return data
         all_days = np.unique(self.dates.date)
-        print "Loading", all_days
         for station in self.stations:
             station_data = pd.concat(map(read_mesonet_day, all_days))
             self.data[station] = station_data.loc[self.dates]
@@ -85,7 +84,6 @@ class MesonetRawData(object):
             self.data[station][columns] = solar_data[columns]
 
     def averaged_data_to_netcdf(self, out_path, time_units="seconds since 1970-01-01 00 UTC", station_numbers=None):
-        print "Saving", self.averaged_data.values()[0].index[0]
         for variable in sorted(self.averaged_data.keys()):
             unique_dates = np.unique(self.averaged_data[variable].index.date)
             for date in unique_dates:

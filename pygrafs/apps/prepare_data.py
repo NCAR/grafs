@@ -214,13 +214,21 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                                                                                 station_indices[:, 0],
                                                                                 station_indices[:, 1]]
                             # Calculate neighborhood statistics from data and add it to data frame
-                            neighbor_stats = model_grid[var].get_neighbor_grid_stats(mt, stats=config.stats)
+                            neighbor_stats = model_grid[var].get_neighbor_grid_stats(mt,
+                                                                                     stats=config.stats,
+                                                                                     neighbor_radius=config.neighbor_radius)
                             for s, stat in enumerate(config.stats):
                                 merged_data_step[var + "_f_" + stat] = neighbor_stats[s,
                                                                                       station_indices[:, 0],
                                                                                       station_indices[:, 1]]
                         for svar, sgrid in solar_data.iteritems():
                             merged_data_step[svar + "_f"] = sgrid.data[mt, station_indices[:, 0], station_indices[:, 1]]
+                        merged_data_step["CLRI_f"] = model_grid[var].data[mt,
+                                                                          station_indices[:, 0],
+                                                                          station_indices[:, 1]] / \
+                                                     solar_data["ETRC"].data[mt,
+                                                                             station_indices[:, 0],
+                                                                             station_indices[:, 1]]
                         # Match model output instances with observations
                         if type(config.obs_var) == str:
                             merged_data_obs = pd.merge(merged_data_step, all_obs[vt.date()].data[config.obs_var],
