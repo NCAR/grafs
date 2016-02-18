@@ -7,7 +7,7 @@ import numpy as np
 from netCDF4 import Dataset, num2date
 from scipy.ndimage.filters import convolve, maximum_filter, minimum_filter, \
     median_filter, correlate, gaussian_gradient_magnitude
-
+from scipy.spatial import cKDTree
 
 class ModelGrid(object):
     """
@@ -157,6 +157,7 @@ class ModelGridSubset(object):
         self.valid_time_indices = self.get_valid_time_indices()
         self.valid_times = self.times[self.valid_time_indices]
         self.init_time = init_time
+        self.kd_tree = None
 
     def get_point_data(self, time, y_point, x_point):
         """
@@ -289,3 +290,13 @@ class ModelGridSubset(object):
             i = np.nan
             j = np.nan
         return i, j
+
+    def nearest_neighbor_grid(self, x_grid, y_grid):
+        neighbor_grid = np.zeros((self.times.size, x_grid.shape[0], x_grid.shape[1]))
+        if self.kd_tree is None:
+            self.kd_tree = cKDTree(zip(self.x.ravel(), self.y.ravel()))
+        dists, indices = self.kd_tree.query(zip(x_grid.ravel(), y_grid.ravel()))
+        for t in range(self.data.shape[0]):
+            neighbor_grid[t] = self.data[t].ravel()[indices].reshape(x_grid.shape)
+        return neighbor_grid
+

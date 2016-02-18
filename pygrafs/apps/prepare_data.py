@@ -161,10 +161,15 @@ def get_land_grid_data(config, interp_lons, interp_lats):
     return land_grids
 
 
-def get_solar_grid_data(times, lon_grid, lat_grid, elevations=None):
-    if elevations is None:
-        elevations = np.zeros(lon_grid.shape)
-    solar_positions = make_solar_position_grid(pd.DatetimeIndex(times), lon_grid, lat_grid, elevations)
+def get_solar_grid_data(times, lon_grid, lat_grid, resolution=0.5):
+    sub_lons = np.arange(lon_grid.min(), lon_grid.max() + resolution, resolution)
+    sub_lats = np.arange(lat_grid.min(), lat_grid.max() + resolution, resolution)
+    sub_lon_grid, sub_lat_grid = np.meshgrid(sub_lons, sub_lats)
+    elevations = np.zeros(sub_lon_grid.shape)
+    sub_solar_positions = make_solar_position_grid(times, sub_lon_grid, sub_lat_grid, elevations)
+    solar_positions = {}
+    for k, v in sub_solar_positions.iteritems():
+        solar_positions[k] = v.nearest_neighbor_grid(lon_grid, lat_grid)
     return solar_positions
 
 
