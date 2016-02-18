@@ -79,15 +79,16 @@ class MLSiteTrainer(MLTrainer):
                                      model_names[m]] = self.models[model_names[m]][site_name].predict(
                     eval_site_data.loc[:, self.input_columns])
             for day in np.unique(evaluation_data["run_day_of_year"].values):
-                print day
+                print "Day", day
                 for hour in np.unique(evaluation_data["forecast_hour"].values):
                     pred_rows = (test_data["run_day_of_year"] == day) & (test_data["forecast_hour"] == hour)
                     eval_rows = (evaluation_data["run_day_of_year"] == day) & (evaluation_data["forecast_hour"] == hour)
-                    interp_preds = nearest_neighbor(site_predictions.loc[eval_rows,
+                    if np.count_nonzero(pred_rows) > 0 and np.count_nonzero(eval_rows) > 0:
+                        interp_preds = nearest_neighbor(site_predictions.loc[eval_rows,
                                                                                   [x_name, y_name, model_names[m]]],
                                                                                   predictions.loc[pred_rows],
                                                                                   y_name, x_name)
-                    predictions.loc[pred_rows, model_names[m]] = nearest_neighbor(site_predictions.loc[eval_rows,
+                        predictions.loc[pred_rows, model_names[m]] = nearest_neighbor(site_predictions.loc[eval_rows,
                                                                                   [x_name, y_name, model_names[m]]],
                                                                                   predictions.loc[pred_rows],
                                                                                   y_name, x_name)

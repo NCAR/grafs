@@ -52,9 +52,10 @@ def create_forecast_data(config, date):
         model_subset_grids, valid_datetimes = load_model_forecasts(config, date)
         model_unique_dates = None
         land_grids = None
-        if hasattr(config, "land_files") and len(model_subset_grids) > 0:
-            model_obj = model_subset_grids.values()[0].values()[0]
-            land_grids = get_land_grid_data(config, model_obj.x, model_obj.y)
+        #if hasattr(config, "land_files") and len(model_subset_grids) > 0:
+        #    print "Loading Land data"
+        #    model_obj = model_subset_grids.values()[0].values()[0]
+        #    land_grids = get_land_grid_data(config, model_obj.x, model_obj.y)
         for model_file in valid_datetimes.iterkeys():
             print(model_subset_grids[model_file].keys())
             if model_unique_dates is None:
@@ -122,6 +123,7 @@ def load_model_forecasts(config, date):
             model_subset_grids[model_file] = {}
             valid_datetimes[model_file] = {}
             for var in config.model_vars:
+                print(var)
                 model_subset_grids[model_file][var] = model_grid.load_subset(var,
                                                                              config.t_range,
                                                                              config.y_range,
@@ -162,7 +164,7 @@ def get_land_grid_data(config, interp_lons, interp_lats):
 def get_solar_grid_data(times, lon_grid, lat_grid, elevations=None):
     if elevations is None:
         elevations = np.zeros(lon_grid.shape)
-    solar_positions = make_solar_position_grid(times, lon_grid, lat_grid, elevations)
+    solar_positions = make_solar_position_grid(pd.DatetimeIndex(times), lon_grid, lat_grid, elevations)
     return solar_positions
 
 

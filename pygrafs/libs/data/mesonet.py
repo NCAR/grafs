@@ -83,7 +83,7 @@ class MesonetRawData(object):
             solar_data["CLRI"][solar_data["ETRC"] == 0] = np.nan
             self.data[station][columns] = solar_data[columns]
 
-    def averaged_data_to_netcdf(self, out_path, time_units="seconds since 1970-01-01 00 UTC", station_numbers=None):
+    def averaged_data_to_netcdf(self, out_path, time_units="seconds since 1970-01-01 00:00", station_numbers=None):
         for variable in sorted(self.averaged_data.keys()):
             unique_dates = np.unique(self.averaged_data[variable].index.date)
             for date in unique_dates:
@@ -104,11 +104,11 @@ class MesonetRawData(object):
                     obs_times = ds.createVariable("time_nominal", "f8", ("timesPerDay", ))
                     obs_times.long_name = "observation time"
                     obs_times.units = time_units
-                    valid_dates = self.averaged_data[variable].index[
-                        self.averaged_data[variable].index.date == date].to_pydatetime()
+                    valid_dates_tz = self.averaged_data[variable].index[
+                        self.averaged_data[variable].index.date == date]
+                    valid_dates = pd.DatetimeIndex([tz.replace(tzinfo=None) for tz in valid_dates_tz]).to_pydatetime()
                     obs_times[:] = date2num(valid_dates, time_units)
                     station_names = ds.createVariable("stationName", "S1", ("recNum", "stationNameSize"))
-                    print self.averaged_data[variable].columns.values
                     station_names[:] = stringtochar(self.averaged_data[variable].columns.values.astype("S4"))
                     if station_numbers is not None:
                         site_list = ds.createVariable("site_list", "i4", ("recNum",))

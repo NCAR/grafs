@@ -92,6 +92,7 @@ def aggregate_mesonet_data(start_date, end_date, stations, av_variables, path, s
         mrd.load_data()
         mrd.solar_data(radiation_var=radiation_var)
         for variable in av_variables:
+            print variable
             mrd.running_mean(variable, 12, 12)
             mrd.running_sd(variable, 12, 12)
         mrd.averaged_data_to_netcdf(nc_path, station_numbers=station_numbers)
