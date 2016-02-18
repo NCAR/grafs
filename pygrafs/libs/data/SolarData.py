@@ -1,10 +1,11 @@
 from pvlib.solarposition import get_solarposition
 from pvlib.irradiance import extraradiation
 from pvlib.location import Location
-from pvlib.spa import solar_position_numpy
+from pvlib.spa import *
 from ModelGrid import ModelGridSubset
 import numpy as np
 import pandas as pd
+
 
 
 class SolarData(object):
