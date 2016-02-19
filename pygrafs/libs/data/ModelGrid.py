@@ -294,9 +294,10 @@ class ModelGridSubset(object):
     def nearest_neighbor_grid(self, x_grid, y_grid):
         neighbor_grid = np.zeros((self.times.size, x_grid.shape[0], x_grid.shape[1]))
         if self.kd_tree is None:
-            self.kd_tree = cKDTree(zip(self.x.ravel(), self.y.ravel()))
-        dists, indices = self.kd_tree.query(zip(x_grid.ravel(), y_grid.ravel()))
+            self.kd_tree = cKDTree(np.vstack([self.x.ravel(), self.y.ravel()]).T)
+        dists, indices = self.kd_tree.query(np.vstack([x_grid.ravel(), y_grid.ravel()]).T)
+        multi_indices = np.unravel_index(indices, self.x.shape)
         for t in range(self.data.shape[0]):
-            neighbor_grid[t] = self.data[t].ravel()[indices].reshape(x_grid.shape)
+            neighbor_grid[t] = self.data[t][multi_indices[0], multi_indices[1]].reshape(x_grid.shape)
         return neighbor_grid
 

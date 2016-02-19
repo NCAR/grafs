@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 from pygrafs.libs.data.LandGrid import LandGrid
-from pygrafs.libs.data.ModelGrid import ModelGrid
+from pygrafs.libs.data.ModelGrid import ModelGrid, ModelGridSubset
 from pygrafs.libs.data.SolarData import make_solar_position_grid
 from pygrafs.libs.data.ObsSite import ObsSite
 from pygrafs.libs.util.Config import Config
@@ -161,15 +161,15 @@ def get_land_grid_data(config, interp_lons, interp_lats):
     return land_grids
 
 
-def get_solar_grid_data(times, lon_grid, lat_grid, resolution=0.5):
+def get_solar_grid_data(times, lon_grid, lat_grid, resolution=0.25):
     sub_lons = np.arange(lon_grid.min(), lon_grid.max() + resolution, resolution)
     sub_lats = np.arange(lat_grid.min(), lat_grid.max() + resolution, resolution)
     sub_lon_grid, sub_lat_grid = np.meshgrid(sub_lons, sub_lats)
     elevations = np.zeros(sub_lon_grid.shape)
-    sub_solar_positions = make_solar_position_grid(times, sub_lon_grid, sub_lat_grid, elevations)
+    sub_solar_positions = make_solar_position_grid(pd.DatetimeIndex(times), sub_lon_grid, sub_lat_grid, elevations)
     solar_positions = {}
     for k, v in sub_solar_positions.iteritems():
-        solar_positions[k] = v.nearest_neighbor_grid(lon_grid, lat_grid)
+        solar_positions[k] = ModelGridSubset(k, v.nearest_neighbor_grid(lon_grid, lat_grid), times, lon_grid, lat_grid, v.init_time)
     return solar_positions
 
 
@@ -235,6 +235,8 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                                                                                       station_indices[:, 1]]
                         for svar, sgrid in solar_data.iteritems():
                             merged_data_step[svar + "_f"] = sgrid.data[mt, station_indices[:, 0], station_indices[:, 1]]
+                        print solar_data["ETRC"].times
+                        print solar_data["ETRC"].data[:, station_indices[0,0], station_indices[0,1]]
                         merged_data_step["CLRI_f"] = model_grid[config.model_ghi_var].data[mt,
                                                                                            station_indices[:, 0],
                                                                                            station_indices[:, 1]] / \

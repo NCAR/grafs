@@ -47,7 +47,7 @@ def make_solar_position_grid(times, lon_grid, lat_grid, elevations):
     temp = 12
     etr = extraradiation(times, method="pyephem").values
     etr = etr.reshape((etr.size, 1, 1))
-    unix_times = times.astype(np.int64)
+    unix_times = times.astype(np.int64) / 10**9
     for (r, c), l in np.ndenumerate(lon_grid):
         position_data[:, :, r, c] = solar_position_numpy(unix_times, lat_grid[r, c], lon_grid[r, c],
                                                          elevations[r, c],
@@ -64,8 +64,22 @@ def make_solar_position_grid(times, lon_grid, lat_grid, elevations):
     return solar_grids
 
 if __name__ == "__main__":
-    times = pd.DatetimeIndex(start="2015-06-04", end="2015-06-05 12:00", freq="1H")
+    import matplotlib.pyplot as plt
+    times = pd.DatetimeIndex(start="2015-06-04 12:00", end="2015-06-05 12:00", freq="1H")
     lon_grid, lat_grid = np.meshgrid(np.arange(-110, -90, 0.5), np.arange(30, 40, 0.5))
+    lon_grid_2, lat_grid_2 = np.meshgrid(np.arange(-110, -90, 0.25), np.arange(30, 40, 0.25))
     elevations = np.zeros(lon_grid.shape)
     pos_data = make_solar_position_grid(times, lon_grid, lat_grid, elevations)
     print pos_data["ETRC"].data.max(), pos_data["ETRC"].data.min()
+    etrc_2 = pos_data["ETRC"].nearest_neighbor_grid(lon_grid, lat_grid)
+    etrc_3 = pos_data["ETRC"].nearest_neighbor_grid(lon_grid_2, lat_grid_2)
+    plt.subplot(1,3,1)
+    plt.contourf(lon_grid, lat_grid, pos_data["ETRC"].data[5])
+    plt.colorbar()
+    plt.subplot(1,3,2)
+    plt.contourf(lon_grid, lat_grid, etrc_2[5])
+    plt.colorbar()
+    plt.subplot(1,3,3)
+    plt.contourf(lon_grid_2, lat_grid_2, etrc_3[5])
+    plt.colorbar()
+    plt.show()
