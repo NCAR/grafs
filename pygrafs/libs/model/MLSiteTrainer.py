@@ -49,7 +49,7 @@ class MLSiteTrainer(MLTrainer):
                 pickle_file.close()
 
     def site_validation(self, model_names, model_objs, pred_columns, test_day_interval, seed=505,
-                        y_name="lat", x_name="lon"):
+                        y_name="lat", x_name="lon", interp_method="nearest", distance_comps=["lon", "lat"]):
         np.random.seed(seed)
         all_sites = np.sort(self.all_data['station'].unique())
         shuffled_sites = np.random.permutation(all_sites)
@@ -74,24 +74,41 @@ class MLSiteTrainer(MLTrainer):
                 self.models[model_names[m]][site_name] = deepcopy(model_obj)
                 self.models[model_names[m]][site_name].fit(site_data.loc[:, self.input_columns],
                                                            site_data.loc[:, self.output_column])
-                eval_site_data = evaluation_data.loc[evaluation_data[self.site_id_column] == site_name]
-                site_predictions.loc[evaluation_data[self.site_id_column] == site_name,
-                                     model_names[m]] = self.models[model_names[m]][site_name].predict(
-                    eval_site_data.loc[:, self.input_columns])
-            for day in np.unique(evaluation_data["run_day_of_year"].values):
-                print "Day", day
-                for hour in np.unique(evaluation_data["forecast_hour"].values):
-                    pred_rows = (test_data["run_day_of_year"] == day) & (test_data["forecast_hour"] == hour)
-                    eval_rows = (evaluation_data["run_day_of_year"] == day) & (evaluation_data["forecast_hour"] == hour)
-                    if np.count_nonzero(pred_rows) > 0 and np.count_nonzero(eval_rows) > 0:
-                        interp_preds = nearest_neighbor(site_predictions.loc[eval_rows,
-                                                                                  [x_name, y_name, model_names[m]]],
-                                                                                  predictions.loc[pred_rows],
-                                                                                  y_name, x_name)
-                        predictions.loc[pred_rows, model_names[m]] = nearest_neighbor(site_predictions.loc[eval_rows,
-                                                                                  [x_name, y_name, model_names[m]]],
-                                                                                  predictions.loc[pred_rows],
-                                                                                  y_name, x_name)
+                if interp_method == "nearest":
+                    eval_site_data = evaluation_data.loc[evaluation_data[self.site_id_column] == site_name]
+                    site_predictions.loc[evaluation_data[self.site_id_column] == site_name,
+                                         model_names[m]] = self.models[model_names[m]][site_name].predict(
+                        eval_site_data.loc[:, self.input_columns])
+            if interp_method == "nearest":
+                for day in np.unique(evaluation_data["run_day_of_year"].values):
+                    print "Day", day
+                    for hour in np.unique(evaluation_data["forecast_hour"].values):
+                        pred_rows = (test_data["run_day_of_year"] == day) & \
+                                    (test_data["forecast_hour"] == hour)
+                        eval_rows = (evaluation_data["run_day_of_year"] == day) & \
+                                    (evaluation_data["forecast_hour"] == hour)
+                        if np.count_nonzero(pred_rows) > 0 and np.count_nonzero(eval_rows) > 0:
+                            predictions.loc[pred_rows, model_names[m]] = \
+                                nearest_neighbor(site_predictions.loc[eval_rows,
+                                                 [x_name, y_name, model_names[m]]],
+                                                 predictions.loc[pred_rows],
+                                                 y_name, x_name)
+            elif interp_method == "weighted":
+                train_predictions = pd.DataFrame(index=train_data.index, columns=train_stations, dtype=float)
+                train_errors = pd.DataFrame(index=train_stations, columns=train_stations, dtype=float)
+                for site_name in train_stations:
+                    train_predictions[site_name] = self.models[model_names[m]][site_name].predict(
+                        train_data[self.input_columns])
+                    for pred_site_name in train_stations:
+                        idx = train_data[self.site_id_column] == pred_site_name
+                        train_errors.loc[site_name, pred_site_name] = \
+                            np.mean((train_predictions.loc[idx, pred_site_name] - train_data.loc[idx,
+                                                                                                 self.output_column]
+                                     ) ** 2)
+
+
+
+
         train_station_locations = train_data[["station", x_name, y_name]].drop_duplicates()
         return predictions, train_station_locations
 

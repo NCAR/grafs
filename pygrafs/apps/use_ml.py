@@ -104,8 +104,8 @@ def site_validation(config):
                         config.output_column)
     mlt.load_data_files(expression, query)
     predictions, train_station_locations = mlt.site_validation(config.model_names, config.model_objects,
-                                                              config.pred_columns, config.test_day_interval,
-                                                              seed=config.random_seed)
+                                                               config.pred_columns, config.test_day_interval,
+                                                               seed=config.random_seed)
     predictions.to_csv(config.site_pred_file, float_format="%0.3f", na_rep="nan", index=False)
     train_station_locations.to_csv(config.site_pred_file.replace(".csv", "_train_locs.csv"), index=False)
 
