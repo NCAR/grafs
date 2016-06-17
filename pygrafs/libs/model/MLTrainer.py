@@ -15,13 +15,14 @@ class MLTrainer(object):
     :param output_column:
     :return:
     """
-    def __init__(self, data_path, data_format, input_columns, output_column):
+    def __init__(self, data_path, data_format, input_columns, output_column, site_id_column="station"):
         self.data_path = data_path
         self.data_format = data_format
         self.input_columns = input_columns
         self.output_column = output_column
         self.models = {}
         self.all_data = None
+        self.site_id_column = site_id_column
         return
 
     def load_data_files(self, exp="", query=None):
@@ -98,27 +99,33 @@ class MLTrainer(object):
         return predictions
 
     def site_validation(self, model_names, model_objs, pred_columns, test_day_interval, seed=505, y_name="lat",
-                        x_name="lon"):
+                        x_name="lon", run_date_col="run_date", interp_method=None):
         """
         Train model at random subset of sites and validate at holdout sites.
 
         :param model_names: List of model names
         :param model_objs: List of model objects
         :param pred_columns: Columns from all_data to be included in output prediction data frame
-        :param split_day: day of year used to split training and testing data
+        :param test_day_interval: number of days between testing days
+        :param seed: random seed for traing/test site splitting
+        :param y_name: Name of the y-coordinate
+        :param x_name: Name of the x-coordinate
+        :param run_date_col: Name of the run date column
+        :param interp_method: Dummy variable
         :return: predictions and metadata in data frame
         """
         np.random.seed(seed)
-        all_sites = np.sort(self.all_data['station'].unique())
+        all_sites = np.sort(self.all_data[self.site_id_column].unique())
         shuffled_sites = np.random.permutation(all_sites)
         train_stations = shuffled_sites[:shuffled_sites.size / 2]
         test_stations = shuffled_sites[shuffled_sites.size/2:]
-        run_day_of_year = pd.DatetimeIndex(self.all_data["run_date"]).dayofyear
+        run_day_of_year = pd.DatetimeIndex(self.all_data[run_date_col]).dayofyear
 
-        train_data = self.all_data.loc[self.all_data['station'].isin(train_stations) &
+        train_data = self.all_data.loc[self.all_data[self.site_id_column].isin(train_stations) &
                                        (run_day_of_year % test_day_interval != 0)]
-        test_data = self.all_data.loc[self.all_data['station'].isin(test_stations) &
+        test_data = self.all_data.loc[self.all_data[self.site_id_column].isin(test_stations) &
                                       (run_day_of_year % test_day_interval == 0)]
+        train_station_locations = train_data.groupby(self.site_id_column).first()[[x_name, y_name]].reset_index()
         predictions = test_data[pred_columns]
         for m, model_obj in enumerate(model_objs):
             print model_names[m]
@@ -126,7 +133,6 @@ class MLTrainer(object):
             predictions[model_names[m]] = model_obj.predict(test_data.loc[:, self.input_columns])
             self.models[model_names[m]] = model_obj
         self.show_feature_importance()
-        train_station_locations = train_data[["station", x_name, y_name]].drop_duplicates()
         return predictions, train_station_locations
 
     def show_feature_importance(self, num_rankings=10):
