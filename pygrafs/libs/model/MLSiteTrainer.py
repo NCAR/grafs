@@ -3,7 +3,7 @@ from copy import deepcopy
 import cPickle
 import numpy as np
 import pandas as pd
-from gridding import nearest_neighbor
+from gridding import nearest_neighbor, cressman
 from scipy.spatial.distance import pdist, squareform, cdist
 from sklearn.linear_model import LinearRegression
 
@@ -113,7 +113,7 @@ class MLSiteTrainer(MLTrainer):
                 self.models[model_names[m]][site_name] = deepcopy(model_obj)
                 self.models[model_names[m]][site_name].fit(site_data.loc[:, self.input_columns],
                                                            site_data.loc[:, self.output_column])
-                if interp_method == "nearest":
+                if interp_method in ["nearest", "cressman"]:
                     eval_site_data = evaluation_data.loc[evaluation_data[self.site_id_column] == site_name]
                     site_predictions.loc[evaluation_data[self.site_id_column] == site_name,
                                          model_names[m]] = self.models[model_names[m]][site_name].predict(
@@ -132,6 +132,21 @@ class MLSiteTrainer(MLTrainer):
                                                  [x_name, y_name, model_names[m]]],
                                                  predictions.loc[pred_rows],
                                                  y_name, x_name)
+            elif interp_method == "cressman":
+                for day in np.unique(evaluation_data["run_day_of_year"].values):
+                    print "Day", day
+                    for hour in np.unique(evaluation_data["forecast_hour"].values):
+                        pred_rows = (test_data["run_day_of_year"] == day) & \
+                                    (test_data["forecast_hour"] == hour)
+                        eval_rows = (evaluation_data["run_day_of_year"] == day) & \
+                                    (evaluation_data["forecast_hour"] == hour)
+                        if np.count_nonzero(pred_rows) > 0 and np.count_nonzero(eval_rows) > 0:
+                            predictions.loc[pred_rows, model_names[m]] = cressman(site_predictions.loc[eval_rows,
+                                                                                                       [x_name, y_name,
+                                                                                                        model_names[m]
+                                                                                                        ]],
+                                                                                  predictions.loc[pred_rows],
+                                                                                  y_name, x_name)
             elif interp_method == "weighted":
                 train_predictions = pd.DataFrame(index=train_data.index, columns=train_stations, dtype=float)
                 test_predictions = pd.DataFrame(index=test_data.index, columns=train_stations, dtype=float)
@@ -154,7 +169,7 @@ class MLSiteTrainer(MLTrainer):
                                              train_data.loc[idx, self.output_column], 2))
                 error_lr = LinearRegression()
                 valid_errors = np.where(~np.isnan(train_errors.values.ravel()))
-                error_lr.fit(train_distances.values.reshape(train_distances.size, 1)[valid_errors], 
+                error_lr.fit(train_distances.values.reshape(train_distances.size, 1)[valid_errors],
                              train_errors.values.ravel()[valid_errors])
                 pred_error = error_lr.predict(train_test_distances.values.reshape(train_test_distances.size, 1))
                 pred_error = pred_error.reshape(train_test_distances.shape)
