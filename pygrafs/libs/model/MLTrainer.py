@@ -3,7 +3,7 @@ import cPickle
 import numpy as np
 import pandas as pd
 import sys
-
+from inspect import getargspec
 
 class MLTrainer(object):
     """
@@ -47,8 +47,8 @@ class MLTrainer(object):
             for q in query:
                 self.all_data = self.all_data.query(q)
             self.all_data.reset_index(drop=True, inplace=True)
-
-        self.all_data = self.all_data.replace(np.nan, 0)
+        self.all_data = self.all_data.dropna()
+        #self.all_data = self.all_data.replace(np.nan, 0)
 
     def sub_sample_data(self, num_samples, method='random', replace=False):
         if method == 'random':
@@ -99,7 +99,7 @@ class MLTrainer(object):
         return predictions
 
     def site_validation(self, model_names, model_objs, pred_columns, test_day_interval, seed=505, y_name="lat",
-                        x_name="lon", run_date_col="run_date", interp_method=None):
+                        x_name="lon", run_date_col="run_date", forecast_hour_col="forecast_hour", interp_method=None):
         """
         Train model at random subset of sites and validate at holdout sites.
 

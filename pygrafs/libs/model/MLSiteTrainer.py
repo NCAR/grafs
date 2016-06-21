@@ -67,7 +67,7 @@ class MLSiteTrainer(MLTrainer):
 
     def site_validation(self, model_names, model_objs, pred_columns, test_day_interval, seed=505,
                         y_name="lat", x_name="lon", interp_method="nearest",
-                        run_date_col="run_date"):
+                        run_date_col="run_date", forecast_hour_col="forecast_hour"):
         """
         Randomly splits the training data into training and testing sites, trains each model, and makes
         predictions at the testing sites.
@@ -88,8 +88,8 @@ class MLSiteTrainer(MLTrainer):
         np.random.seed(seed)
         all_sites = np.sort(self.all_data[self.site_id_column].unique())
         shuffled_sites = np.random.permutation(all_sites)
-        train_stations = shuffled_sites[:shuffled_sites.size / 2]
-        test_stations = shuffled_sites[shuffled_sites.size/2:]
+        train_stations = np.array(sorted(shuffled_sites[:shuffled_sites.size / 2]))
+        test_stations = np.array(sorted(shuffled_sites[shuffled_sites.size/2:]))
         run_day_of_year = pd.DatetimeIndex(self.all_data[run_date_col]).dayofyear
         self.all_data["run_day_of_year"] = run_day_of_year
         train_data = self.all_data.loc[self.all_data[self.site_id_column].isin(train_stations) &
@@ -121,11 +121,11 @@ class MLSiteTrainer(MLTrainer):
             if interp_method == "nearest":
                 for day in np.unique(evaluation_data["run_day_of_year"].values):
                     print("Day", day)
-                    for hour in np.unique(evaluation_data["forecast_hour"].values):
+                    for hour in np.unique(evaluation_data[forecast_hour_col].values):
                         pred_rows = (test_data["run_day_of_year"] == day) & \
-                                    (test_data["forecast_hour"] == hour)
+                                    (test_data[forecast_hour_col] == hour)
                         eval_rows = (evaluation_data["run_day_of_year"] == day) & \
-                                    (evaluation_data["forecast_hour"] == hour)
+                                    (evaluation_data[forecast_hour_col] == hour)
                         if np.count_nonzero(pred_rows) > 0 and np.count_nonzero(eval_rows) > 0:
                             predictions.loc[pred_rows, model_names[m]] = \
                                 nearest_neighbor(site_predictions.loc[eval_rows,
@@ -153,13 +153,15 @@ class MLSiteTrainer(MLTrainer):
                             np.mean(np.power(train_predictions.loc[idx, pred_site_name] -
                                              train_data.loc[idx, self.output_column], 2))
                 error_lr = LinearRegression()
-                error_lr.fit(train_distances.values.reshape(train_distances.size, 1), train_errors.ravel())
+                valid_errors = np.where(~np.isnan(train_errors.values.ravel()))
+                error_lr.fit(train_distances.values.reshape(train_distances.size, 1)[valid_errors], 
+                             train_errors.values.ravel()[valid_errors])
                 pred_error = error_lr.predict(train_test_distances.values.reshape(train_test_distances.size, 1))
                 pred_error = pred_error.reshape(train_test_distances.shape)
                 pred_weights = 1.0 / pred_error
                 pred_weights /= np.tile(pred_weights.sum(axis=1), (pred_weights.shape[1], 1)).T
                 pred_weight_df = pd.DataFrame(pred_weights, index=test_stations, columns=train_stations)
                 predictions[model_names[m]] = \
-                    np.sum(test_predictions * pred_weight_df.loc[test_data[self.site_id_column]], axis=1)
+                    np.sum(test_predictions * pred_weight_df.loc[test_data[self.site_id_column].values].values, axis=1)
         return predictions, train_station_locations
 

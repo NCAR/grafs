@@ -101,12 +101,14 @@ def site_validation(config):
         mlt = MLTrainer(config.data_path,
                         config.data_format,
                         config.input_columns,
-                        config.output_column)
+                        config.output_column,
+                        config.site_id_column)
     mlt.load_data_files(expression, query)
     predictions, train_station_locations = mlt.site_validation(config.model_names, config.model_objects,
                                                                config.pred_columns, config.test_day_interval,
                                                                seed=config.random_seed, x_name=config.x_name,
                                                                y_name=config.y_name, run_date_col=config.run_date_col,
+                                                               forecast_hour_col=config.forecast_hour_col, 
                                                                interp_method=config.interp_method)
     predictions.to_csv(config.site_pred_file, float_format="%0.3f", na_rep="nan", index=False)
     train_station_locations.to_csv(config.site_pred_file.replace(".csv", "_train_locs.csv"), index=False)

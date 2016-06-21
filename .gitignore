@@ -1,5 +1,6 @@
 *.py[cod]
 *.so
 build/
+dist/
 doc/_build/
 *.pyc
