@@ -48,6 +48,8 @@ class MLTrainer(object):
                 self.all_data = self.all_data.query(q)
             self.all_data.reset_index(drop=True, inplace=True)
         self.all_data = self.all_data.dropna()
+        if "CLRI_f" in self.input_columns:
+            self.all_data["CLRI_f"] = self.all_data["radsw"] / self.all_data["ETRC_Mean"]
         #self.all_data = self.all_data.replace(np.nan, 0)
 
     def sub_sample_data(self, num_samples, method='random', replace=False):
@@ -129,13 +131,17 @@ class MLTrainer(object):
         predictions = test_data[pred_columns]
         for m, model_obj in enumerate(model_objs):
             print model_names[m]
-            model_obj.fit(train_data.loc[:, self.input_columns], train_data.loc[:, self.output_column])
-            predictions[model_names[m]] = model_obj.predict(test_data.loc[:, self.input_columns])
+            model_obj.fit(train_data.loc[:, self.input_columns].values, train_data.loc[:, self.output_column])
+            if model_names[m] == "Random Forest Median":
+                predictions[model_names[m]] = np.median(np.array([t.predict(test_data.loc[:, self.input_columns].values) 
+                                                                  for t in model_obj.estimators_]).T, axis=1)
+            else:
+                predictions[model_names[m]] = model_obj.predict(test_data.loc[:, self.input_columns].values)
             self.models[model_names[m]] = model_obj
         self.show_feature_importance()
         return predictions, train_station_locations
 
-    def show_feature_importance(self, num_rankings=10):
+    def show_feature_importance(self, num_rankings=20):
         """
         Display the top features in order of importance.
 
@@ -147,9 +153,15 @@ class MLTrainer(object):
                 scores = model_obj.feature_importances_
                 rankings = np.argsort(scores)[::-1]
                 print(model_name)
-                for i, r in enumerate(rankings[0:num_rankings]):
+                for i, r in enumerate(rankings[0:np.minimum(num_rankings, rankings.size)]):
                     print("{0:d}. {1}: {2:0.3f}".format(i + 1, self.input_columns[r], scores[r]))
-    
+            if hasattr(model_obj, "coef_"):
+                scores = model_obj.coef_
+                rankings = np.argsort(np.abs(scores))[::-1]
+                print(model_name)
+                for i, r in enumerate(rankings[0:np.minimum(num_rankings, rankings.size)]):
+                    print("{0:d}. {1}: {2:0.3f}".format(i + 1, self.input_columns[r], scores[r]))
+
     def save_models(self, model_path):
         """
         Save models to pickle files with same name as specified in config file

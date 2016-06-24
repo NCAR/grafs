@@ -64,5 +64,5 @@ def cressman(predictions, grid_coordinates, y_name, x_name, radii=None):
     for radius in radii:
         weights = (radius ** 2 - distances) / (radius ** 2 + distances)
         weights[weights < 0] = 0
-        grid_predictions += np.sum(weights * (train_predictions - grid_predictions), axis=1) / weights.sum(axis=1)
+        grid_predictions[:, 0] += np.sum(weights * (train_predictions - grid_predictions), axis=1) / weights.sum(axis=1)
     return grid_predictions
