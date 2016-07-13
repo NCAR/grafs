@@ -66,7 +66,6 @@ def create_forecast_data(config, date):
                                                 model_subset_grids[model_file].values()[0].get_unique_dates())
         if config.mode == "train" and model_unique_dates is not None:
             all_obs = load_obs(config, model_unique_dates)
-            print all_obs
             match_model_obs(model_subset_grids, all_obs, config, land_grids=land_grids)
 
         if config.mode == "forecast" and model_unique_dates is not None:
@@ -166,7 +165,7 @@ def get_solar_grid_data(times, lon_grid, lat_grid, resolution=0.25):
     sub_lats = np.arange(lat_grid.min(), lat_grid.max() + resolution, resolution)
     sub_lon_grid, sub_lat_grid = np.meshgrid(sub_lons, sub_lats)
     elevations = np.zeros(sub_lon_grid.shape)
-    sub_solar_positions = make_solar_position_grid(pd.DatetimeIndex(times), sub_lon_grid, sub_lat_grid, elevations)
+    sub_solar_positions = make_solar_position_grid(pd.DatetimeIndex(times, tz="UTC"), sub_lon_grid, sub_lat_grid, elevations)
     solar_positions = {}
     for k, v in sub_solar_positions.iteritems():
         solar_positions[k] = ModelGridSubset(k, v.nearest_neighbor_grid(lon_grid, lat_grid), times, lon_grid, lat_grid, v.init_time)
@@ -235,8 +234,6 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                                                                                       station_indices[:, 1]]
                         for svar, sgrid in solar_data.iteritems():
                             merged_data_step[svar + "_f"] = sgrid.data[mt, station_indices[:, 0], station_indices[:, 1]]
-                        print solar_data["ETRC"].times
-                        print solar_data["ETRC"].data[:, station_indices[0,0], station_indices[0,1]]
                         merged_data_step["CLRI_f"] = model_grid[config.model_ghi_var].data[mt,
                                                                                            station_indices[:, 0],
                                                                                            station_indices[:, 1]] / \

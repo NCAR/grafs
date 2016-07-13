@@ -5,7 +5,7 @@ from pvlib.spa import *
 from ModelGrid import ModelGridSubset
 import numpy as np
 import pandas as pd
-
+from datetime import datetime
 
 
 class SolarData(object):
@@ -47,13 +47,19 @@ def make_solar_position_grid(times, lon_grid, lat_grid, elevations):
     temp = 12
     etr = extraradiation(times, method="pyephem").values
     etr = etr.reshape((etr.size, 1, 1))
-    unix_times = times.astype(np.int64) / 10**9
+    #unix_times = times.astype(np.int64) / 10**9
+    rapid_times = pd.DatetimeIndex(start=times.values[0]-pd.Timedelta("1 hour"), end=times.values[-1], freq="5Min")
+    loc = Location(lat_grid[0,0], lon_grid[0,0], tz="UTC", altitude=0)
     for (r, c), l in np.ndenumerate(lon_grid):
-        position_data[:, :, r, c] = solar_position_numpy(unix_times, lat_grid[r, c], lon_grid[r, c],
-                                                         elevations[r, c],
-                                                         pressure,
-                                                         temp, delta_t,
-                                                         atmos_refract, 1)[0:5]
+        #position_data[:, :, r, c] = solar_position_numpy(unix_times, lat_grid[r, c], lon_grid[r, c],
+        #                                                 elevations[r, c],
+        #                                                 pressure,
+        #                                                 temp, delta_t,
+        #                                                 atmos_refract, 1)[0:5]
+        loc.latitude = lat_grid[r, c]
+        loc.longitude = lon_grid[r, c]
+        position_data[:, :, r, c] = pd.rolling_mean(get_solarposition(rapid_times, loc, method="nrel_numba"),
+                                                    12).loc[times,position_variables].values.T
     solar_grids = {}
     for p, pos_var in enumerate(position_variables):
         solar_grids[pos_var] = ModelGridSubset(pos_var, position_data[p],
@@ -65,11 +71,13 @@ def make_solar_position_grid(times, lon_grid, lat_grid, elevations):
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    times = pd.DatetimeIndex(start="2015-06-04 12:00", end="2015-06-05 12:00", freq="1H")
+    times = pd.DatetimeIndex(start="2015-06-04 12:00", end="2015-06-05 12:00", freq="1H", tz="UTC")
     lon_grid, lat_grid = np.meshgrid(np.arange(-110, -90, 0.5), np.arange(30, 40, 0.5))
-    lon_grid_2, lat_grid_2 = np.meshgrid(np.arange(-110, -90, 0.25), np.arange(30, 40, 0.25))
+    lon_grid_2, lat_grid_2 = np.meshgrid(np.arange(-110, -90, 0.1), np.arange(30, 40, 0.1))
     elevations = np.zeros(lon_grid.shape)
+    print datetime.now()
     pos_data = make_solar_position_grid(times, lon_grid, lat_grid, elevations)
+    print datetime.now()
     print pos_data["ETRC"].data.max(), pos_data["ETRC"].data.min()
     etrc_2 = pos_data["ETRC"].nearest_neighbor_grid(lon_grid, lat_grid)
     etrc_3 = pos_data["ETRC"].nearest_neighbor_grid(lon_grid_2, lat_grid_2)

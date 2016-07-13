@@ -48,7 +48,7 @@ class MLTrainer(object):
                 self.all_data = self.all_data.query(q)
             self.all_data.reset_index(drop=True, inplace=True)
         self.all_data = self.all_data.dropna()
-        if "CLRI_f" in self.input_columns:
+        if "CLRI_f" in self.input_columns and "CLRI_f" not in self.all_data.columns:
             self.all_data["CLRI_f"] = self.all_data["radsw"] / self.all_data["ETRC_Mean"]
         #self.all_data = self.all_data.replace(np.nan, 0)
 
