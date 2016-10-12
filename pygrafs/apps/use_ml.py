@@ -8,6 +8,7 @@ from pygrafs.libs.model.MLForecaster import MLForecaster
 from pygrafs.libs.model.MLSiteForecaster import MLSiteForecaster
 from pygrafs.libs.model.MLSiteTrainer import MLSiteTrainer
 
+
 def main():
     parser = argparse.ArgumentParser(description="Use machine learning models on processed data.")
     parser.add_argument('config', help="Config file")
@@ -26,7 +27,7 @@ def main():
     if args.site:
         site_validation(config)
     if args.fore:
-        print "Forecasting"
+        print("Forecasting")
         forecast_models(config)
     return
 
@@ -127,8 +128,8 @@ def forecast_models(config):
                        config.output_column)
     mlf.load_data(exp=config.expression)
     for model_name in config.model_names:
-        mlf.load_model(config.ml_model_path + model_name + ".pkl")
-    all_predictions = mlf.make_predictions(config.pred_columns,)
+        mlf.load_model(config.ml_model_path + model_name + ".pkl", model_name)
+    all_predictions = mlf.make_predictions(config.pred_columns)
     mlf.save_predictions(all_predictions, config.pred_path, config.pred_format)
     return
 

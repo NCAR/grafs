@@ -4,18 +4,18 @@ import numpy as np
 
 
 def main():
-    from ModelGrid import ModelGrid
+    from .ModelGrid import ModelGrid
     import matplotlib.pyplot as plt
     model_grid = ModelGrid("../../test/test_data/int_fcst_grid.20141102.11.nc")
     t_range = (0, 2)
     y_range = (26.0, 43.0)
     x_range = (-125.0, -93.0)
-    print "loading subset"
+    print("loading subset")
     subset_data = model_grid.load_subset("av_dswrf_sfc", t_range, y_range, x_range, space_subset_type="coordinate")
     land_grid = LandGrid("/d2/dgagne/GTOPO30_HYDRO_1K_terrain.nc")
-    print "interpolating"
+    print("interpolating")
     interp_data = land_grid.interpolate_grid("dem", subset_data.x, subset_data.y)
-    print "plotting"
+    print("plotting")
     plt.contourf(subset_data.x, subset_data.y, interp_data)
     plt.colorbar()
     plt.show()

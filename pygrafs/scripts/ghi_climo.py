@@ -5,7 +5,7 @@ import sys
 from scipy.io import loadmat
 import numpy as np
 import pandas as pd
-from pvlib.clearsky import clearsky_ineichen
+from pvlib.clearsky import ineichen
 from pvlib.location import Location
 
 from pygrafs.libs.data.ModelGrid import ModelGrid
@@ -46,7 +46,7 @@ def generate_clear_sky_climo(grid_file, linke_file, elevation_file, out_file, st
         day_var.long_name = 'day of year'
         hour_var = out_file_obj.createVariable('hour','i2',('time',))
         hour_var.long_name = 'valid hour'
-        print "Creating GHI Var"
+        print("Creating GHI Var")
         ghi_var = out_file_obj.createVariable('GHI', 'f4', ('y', 'x', 'time'))
         ghi_var.units = 'W m-2'
         ghi_var.long_name = "Global Horizontal Irradiance"
@@ -57,7 +57,7 @@ def generate_clear_sky_climo(grid_file, linke_file, elevation_file, out_file, st
         hour_var[:] = times.hour
         flat_index = 0
         ghi_arr = np.empty((lons.shape[0],lons.shape[1],times.size), dtype=np.float32)
-        print ghi_arr.shape
+        print(ghi_arr.shape)
         while flat_index < lons.size:
             row, col = np.unravel_index(flat_index,lons.shape)
             proc_name = "{0:03d},{1:03d}".format(row, col)
@@ -65,7 +65,7 @@ def generate_clear_sky_climo(grid_file, linke_file, elevation_file, out_file, st
             sys.stdout.flush()
             elevation = elev.get_elevation(lons[row, col], lats[row, col])
             args = (lons[row, col], lats[row, col], elevation, start_time, end_time, linke_obj)
-            ghi_arr[row,col] = apply(calc_point_clear_sky, args)
+            ghi_arr[row,col] = calc_point_clear_sky(*args)
             flat_index += 1
         out_file_obj.variables['GHI'][:] = ghi_arr
     finally:
@@ -77,7 +77,7 @@ def calc_point_clear_sky(lon, lat, elevation, start_time, end_time, linke_obj):
     turbidity = linke_obj.get_turbidity_values(lon, lat, start_time, end_time)
     times = pd.date_range(start_time, end_time, freq='H', tz='UTC')
     location = Location(lat, lon, tz='UTC', altitude=elevation)
-    radiation = clearsky_ineichen(times, location, turbidity['data'].values)
+    radiation = ineichen(times, location, turbidity['data'].values)
     return radiation['ClearSkyGHI'].values
 
 
@@ -130,6 +130,7 @@ class LinkeTurbidity(object):
         et = all_turbidity.index.searchsorted(np.datetime64(end_time))
         all_turbidity = all_turbidity.ix[st:et+1]
         return all_turbidity
+
 
 def convert_linke_turbidity(linke_mat_file, linke_nc_file):
     """

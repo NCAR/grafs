@@ -1,9 +1,9 @@
 from glob import glob
-import cPickle
+import pickle
 import numpy as np
 import pandas as pd
 import sys
-from inspect import getargspec
+
 
 class MLTrainer(object):
     """
@@ -50,7 +50,6 @@ class MLTrainer(object):
         self.all_data = self.all_data.dropna()
         if "CLRI_f" in self.input_columns and "CLRI_f" not in self.all_data.columns:
             self.all_data["CLRI_f"] = self.all_data["radsw"] / self.all_data["ETRC_Mean"]
-        #self.all_data = self.all_data.replace(np.nan, 0)
 
     def sub_sample_data(self, num_samples, method='random', replace=False):
         if method == 'random':
@@ -113,6 +112,7 @@ class MLTrainer(object):
         :param y_name: Name of the y-coordinate
         :param x_name: Name of the x-coordinate
         :param run_date_col: Name of the run date column
+        :param forecast_hour_col: Name of the forecast hour column
         :param interp_method: Dummy variable
         :return: predictions and metadata in data frame
         """
@@ -130,7 +130,7 @@ class MLTrainer(object):
         train_station_locations = train_data.groupby(self.site_id_column).first()[[x_name, y_name]].reset_index()
         predictions = test_data[pred_columns]
         for m, model_obj in enumerate(model_objs):
-            print model_names[m]
+            print(model_names[m])
             model_obj.fit(train_data.loc[:, self.input_columns].values, train_data.loc[:, self.output_column])
             if model_names[m] == "Random Forest Median":
                 predictions[model_names[m]] = np.median(np.array([t.predict(test_data.loc[:, self.input_columns].values) 
@@ -148,7 +148,7 @@ class MLTrainer(object):
         :param num_rankings: Number of rankings to display
         :return:
         """
-        for model_name, model_obj in self.models.iteritems():
+        for model_name, model_obj in self.models.items():
             if hasattr(model_obj, "feature_importances_"):
                 scores = model_obj.feature_importances_
                 rankings = np.argsort(scores)[::-1]
@@ -169,7 +169,7 @@ class MLTrainer(object):
         :param model_path: Path to model output files
         :return:
         """
-        for model_name, model_obj in self.models.iteritems():
+        for model_name, model_obj in self.models.items():
             with open(model_path + model_name + ".pkl", "w") as model_file:
-                cPickle.dump(model_obj, model_file, cPickle.HIGHEST_PROTOCOL)
+                pickle.dump(model_obj, model_file, pickle.HIGHEST_PROTOCOL)
         return

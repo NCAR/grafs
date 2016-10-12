@@ -106,9 +106,8 @@ def calc_TOA(lat, lon, alt, day, month, year, ToD):
 def TOA_fast(lons, lats, dates):
     SOL_CONST = 1367.8
     toa = np.zeros((dates.size, lats.size, lons.size))
-    print toa.shape
     for (d, la, lo), v in np.ndenumerate(toa):
-        #tz_offset = int(lons[lo] / 15)
+        tz_offset = int(lons[lo] / 15)
         hour = dates[d].hour
         #local_hour = (hour + tz_offset) % 24
         doy = dates[d].dayofyear
@@ -146,6 +145,5 @@ if __name__ == "__main__":
     lat = np.arange(35,38,0.1)
     dates = pd.date_range('2014-10-1 00:00','2014-10-03 23:00', freq="H")
     toa = TOA_fast(lon, lat, dates)
-    print dates.shape, toa[:,10, 15].shape
     plt.plot(dates.values,toa[:, 10 , 15].flatten())
     plt.show()

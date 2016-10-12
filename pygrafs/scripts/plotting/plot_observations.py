@@ -23,7 +23,6 @@ def main():
     obs_dates = pd.date_range(args.start, args.end, freq="H")
     all_data = load_data(obs_dates, args.var, args.obs)
     plot_obs_maps(all_data, obs_dates, args.var, args.out)
-    print all_data
     return
 
 
@@ -31,7 +30,7 @@ def load_data(dates, variable, path):
     days = np.unique(dates.date)
     all_data = None
     for day in days:
-        print day
+        print(day)
         obs_files = sorted(glob(path + day.strftime("/%Y%m%d/*.nc")))
         if len(obs_files) > 0:
             obs_obj = ObsSite(obs_files[0])
@@ -48,7 +47,6 @@ def plot_obs_maps(all_data, obs_dates, variable, out_path):
     plt.figure(figsize=(10, 6))
     lon_bounds = (all_data['lon'].min() - 1.0, all_data['lon'].max() + 1.0)
     lat_bounds = (all_data['lat'].min() - 1.0, all_data['lat'].max() + 1.0)
-    print lon_bounds, lat_bounds
     bmap = Basemap(projection="cyl",
                    resolution='l',
                    llcrnrlon=lon_bounds[0],
@@ -60,7 +58,7 @@ def plot_obs_maps(all_data, obs_dates, variable, out_path):
     bmap.drawstates()
     title_obj = plt.title("")
     for d, date in enumerate(obs_dates):
-        print "Plotting ", date
+        print("Plotting ", date)
         di = all_data['date'] == date
         scatter = plt.scatter(all_data.loc[di,'lon'],
                               all_data.loc[di,'lat'],

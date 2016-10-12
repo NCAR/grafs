@@ -7,7 +7,7 @@ def main():
     var = "av_dswrf_sfc"
     obs = ObsSite("/d2/dgagne/grafs/pygrafs/test/test_data/int_obs.20141215.nc")
     obs.load_data(var)
-    print obs.data[var]
+    print(obs.data[var])
     return
 
 

@@ -1,4 +1,4 @@
-import cPickle as pickle
+import pickle
 from netCDF4 import Dataset, date2num
 import numpy as np
 import pandas as pd
@@ -62,11 +62,11 @@ class MLForecaster(object):
         :return:
         """
         all_predictions = {}
-        for forecast_file, forecast_data in self.all_forecasts.iteritems():
+        for forecast_file, forecast_data in self.all_forecasts.items():
             sys.stdout.write("\rMake Predictions: " + forecast_file.split("/")[-1])
             sys.stdout.flush()
             predictions = forecast_data.loc[:, pred_columns]
-            for model_name, model in self.models.iteritems():
+            for model_name, model in self.models.items():
                 predictions[model_name] = model.predict(forecast_data.ix[:, self.input_columns])
             all_predictions[forecast_file] = predictions
         return all_predictions

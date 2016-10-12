@@ -2,7 +2,7 @@ from pvlib.solarposition import get_solarposition
 from pvlib.irradiance import extraradiation
 from pvlib.location import Location
 from pvlib.spa import *
-from ModelGrid import ModelGridSubset
+from .ModelGrid import ModelGridSubset
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -15,7 +15,7 @@ class SolarData(object):
         self.lat_grid = lat_grid
         self.elevations = elevations
 
-    def solar_position(self, position_variables=["elevation", "zenith", "azimuth", "ETRC"]):
+    def solar_position(self, position_variables=("elevation", "zenith", "azimuth", "ETRC")):
         position_data = {}
         for pos_var in position_variables:
             position_data[pos_var] = np.zeros((self.times.size, self.lon_grid.shape[0], self.lon_grid.shape[1]))
@@ -75,19 +75,16 @@ if __name__ == "__main__":
     lon_grid, lat_grid = np.meshgrid(np.arange(-110, -90, 0.5), np.arange(30, 40, 0.5))
     lon_grid_2, lat_grid_2 = np.meshgrid(np.arange(-110, -90, 0.1), np.arange(30, 40, 0.1))
     elevations = np.zeros(lon_grid.shape)
-    print datetime.now()
     pos_data = make_solar_position_grid(times, lon_grid, lat_grid, elevations)
-    print datetime.now()
-    print pos_data["ETRC"].data.max(), pos_data["ETRC"].data.min()
     etrc_2 = pos_data["ETRC"].nearest_neighbor_grid(lon_grid, lat_grid)
     etrc_3 = pos_data["ETRC"].nearest_neighbor_grid(lon_grid_2, lat_grid_2)
-    plt.subplot(1,3,1)
+    plt.subplot(1, 3, 1)
     plt.contourf(lon_grid, lat_grid, pos_data["ETRC"].data[5])
     plt.colorbar()
-    plt.subplot(1,3,2)
+    plt.subplot(1, 3, 2)
     plt.contourf(lon_grid, lat_grid, etrc_2[5])
     plt.colorbar()
-    plt.subplot(1,3,3)
+    plt.subplot(1, 3, 3)
     plt.contourf(lon_grid_2, lat_grid_2, etrc_3[5])
     plt.colorbar()
     plt.show()

@@ -6,24 +6,24 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from matplotlib.colors import ListedColormap
 
+
 def main():
     station_file = "/d2/dgagne/static_data/site_list/int_obs_sites.asc"
     madis_filename = "/d2/ldm/data/dec_data/obs/madis/20150531/madis.20150531.1500.nc"
     provider_table, obs_table, station_table = get_provider_info(madis_filename)
     grafs_stations = load_meta_file(station_file)
-    print provider_table.loc[provider_table['solar_code'] > 0]
+    print(provider_table.loc[provider_table['solar_code'] > 0])
     combined = pd.merge(grafs_stations,
                         station_table[['StationID', 'Provider', 'solar_code', 'solar_description']],
                         left_on="icao", right_on="StationID")
     unique_codes = combined['solar_description'].unique()
-    print combined.shape, grafs_stations.shape
     for code in unique_codes:
-        print code, combined.loc[combined['solar_description'] == code].shape[0]
+        print(code, combined.loc[combined['solar_description'] == code].shape[0])
     grafs_providers = combined['Provider'].unique()
     for provider in grafs_providers:
         provider_table.loc[provider, 'station_count'] = np.count_nonzero(combined['Provider'] == provider)
-    print provider_table.loc[grafs_providers]
-    print combined.columns
+    print(provider_table.loc[grafs_providers])
+    print(combined.columns)
     combined.to_csv("/d2/dgagne/static_data/site_list/int_obs_sites_solar.asc", sep=";", index=False)
     cm = ['red', 'orange', 'green', 'blue', 'purple']
     plt.figure(figsize=(10, 7))
@@ -57,7 +57,7 @@ def get_provider_info(madis_filename):
                                                    "value{0:d}".format(x)) for x in provider_table['solar_code']]
 
     madis_data.close()
-    print data_providers
+    print(data_providers)
     obs_table = pd.DataFrame({"Provider": data_providers,
                               "StationID": station_id,
                               "SolarRadiation": solar_radiation,
@@ -72,7 +72,7 @@ def get_provider_info(madis_filename):
     provider_table['station_count'] = station_counts
     station_table = pd.merge(obs_table.loc[:, ['Provider', 'StationID', 'Lat', 'Lon']],
                              provider_table, left_on="Provider", right_index=True, how="left")
-    print station_table.shape, obs_table.shape
+    print(station_table.shape, obs_table.shape)
     return provider_table, obs_table, station_table
 
 

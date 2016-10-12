@@ -1,7 +1,8 @@
 from time import sleep
 import sys
 
-def pool_manager(procs, returnResults=True):
+
+def pool_manager(procs, return_results=True):
     completed = []
     results = {}
     while len(procs) > 0:
@@ -11,15 +12,15 @@ def pool_manager(procs, returnResults=True):
                 if proc.successful():
                     sys.stdout.write("\r{0} completed".format(name))
                 else:
-                    print name, " failed"
-                if returnResults:
+                    print(name, " failed")
+                if return_results:
                     results[name] = proc.get()
                 else:
                     proc.get()
                 completed.append(name)
         while len(completed) > 0:
             del procs[completed.pop()]
-    if returnResults:
+    if return_results:
         return results
     else:
         return 0

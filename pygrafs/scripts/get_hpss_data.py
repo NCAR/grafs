@@ -16,7 +16,7 @@ def main():
     end_date = datetime.strptime(args.end, date_format)
     curr_date = start_date
     while curr_date <= end_date:
-        print curr_date
+        print(curr_date)
         get_forecast_file(curr_date, args.file, args.hpath, args.out)
         curr_date += timedelta(days=1)
     return
@@ -26,7 +26,7 @@ def get_forecast_file(date_obj, file_type, in_path, out_path):
     os.chdir(out_path)
     filename = "{0}{1}/{2}.{1}.tar.gz".format(in_path,date_str,file_type)
     cmd = "hsi -P -q get {0}".format(filename)
-    print cmd
+    print(cmd)
     subprocess.call(cmd,shell=True)
     return
 

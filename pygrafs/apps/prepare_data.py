@@ -56,7 +56,7 @@ def create_forecast_data(config, date):
         #    print "Loading Land data"
         #    model_obj = model_subset_grids.values()[0].values()[0]
         #    land_grids = get_land_grid_data(config, model_obj.x, model_obj.y)
-        for model_file in valid_datetimes.iterkeys():
+        for model_file in valid_datetimes.keys():
             print(model_subset_grids[model_file].keys())
             if model_unique_dates is None:
                 model_unique_dates = model_subset_grids[model_file].values()[0].get_unique_dates()
@@ -71,7 +71,7 @@ def create_forecast_data(config, date):
         if config.mode == "forecast" and model_unique_dates is not None:
             merge_model_forecasts(model_subset_grids, config)
     except Exception as e:
-        print traceback.format_exc()
+        print(traceback.format_exc())
         raise e
 
     return

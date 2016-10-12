@@ -1,9 +1,9 @@
-from MLTrainer import MLTrainer
+from .MLTrainer import MLTrainer
 from copy import deepcopy
-import cPickle
+import pickle
 import numpy as np
 import pandas as pd
-from gridding import nearest_neighbor, cressman
+from .gridding import nearest_neighbor, cressman
 from scipy.spatial.distance import pdist, squareform, cdist
 from sklearn.linear_model import LinearRegression
 
@@ -62,7 +62,7 @@ class MLSiteTrainer(MLTrainer):
         for model_name, site_models in self.models.iteritems():
             for site, model in site_models.iteritems():
                 pickle_file = open(model_path + "{0}_{1}.pkl".format(model_name, site), "w")
-                cPickle.dump(model, pickle_file)
+                pickle.dump(model, pickle_file)
                 pickle_file.close()
 
     def site_validation(self, model_names, model_objs, pred_columns, test_day_interval, seed=505,
@@ -137,7 +137,7 @@ class MLSiteTrainer(MLTrainer):
                                                  y_name, x_name)
             elif interp_method == "cressman":
                 for day in np.unique(evaluation_data["run_day_of_year"].values):
-                    print "Day", day
+                    print("Day", day)
                     for hour in np.unique(evaluation_data[forecast_hour_col].values):
                         pred_rows = (test_data["run_day_of_year"] == day) & \
                                     (test_data[forecast_hour_col] == hour)

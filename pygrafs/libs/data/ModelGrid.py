@@ -9,6 +9,7 @@ from scipy.ndimage.filters import convolve, maximum_filter, minimum_filter, \
     median_filter, correlate, gaussian_gradient_magnitude
 from scipy.spatial import cKDTree
 
+
 class ModelGrid(object):
     """
     ModelGrid objects can load model output from netCDF files and perform

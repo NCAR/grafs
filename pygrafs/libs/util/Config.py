@@ -10,7 +10,7 @@ class Config(object):
         config_file.close()
         if "config" not in config_text:
             raise ValueError
-        exec config_text
+        exec(config_text)
         for a, v in config.iteritems():
             setattr(self, a, v)
         if len(required_attributes) > 0:
@@ -18,6 +18,6 @@ class Config(object):
             if not all(has_required):
                 for i in range(len(required_attributes)):
                     if not has_required[i]:
-                        print "{0} not found.".format(required_attributes[i])
+                        print("{0} not found.".format(required_attributes[i]))
                 exit(1)
  

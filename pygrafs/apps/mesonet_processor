@@ -17,9 +17,9 @@ def plot_solar_variability():
     station_info_file = path + "geoinfo.csv"
     md = MesonetRawData(start_date, end_date, stations, path, station_info_file)
     md.load_data()
-    print md.data["NORM"]["SRAD"]
-    print md.running_mean("SRAD", 12, 12)
-    print md.running_sd("SRAD", 12, 12)
+    print(md.data["NORM"]["SRAD"])
+    print(md.running_mean("SRAD", 12, 12))
+    print(md.running_sd("SRAD", 12, 12))
     md.solar_data()
     # clearness_index_mean = md.running_mean("CLRI", 12, 12).dropna()
 
@@ -47,7 +47,7 @@ def plot_solar_variability():
         plt.close()
 
     for station in stations:
-        print station
+        print(station)
         plot_kt_sd_hist(clearness_index_sd, station)
     return
 
@@ -66,8 +66,8 @@ def main():
     pool = Pool(args.procs)
     dates = pd.DatetimeIndex(start=args.start, end=args.end, freq="1D")
     stations, station_numbers = get_valid_station_data(args.meta, dates[0])
-    print stations
-    print station_numbers
+    print(stations)
+    print(station_numbers)
     for d, date in enumerate(dates.to_pydatetime()):
         pool.apply_async(aggregate_mesonet_data, (date - timedelta(hours=1), date + timedelta(hours=23),
                                                   variables, args.mesopath, args.meta, args.out))
@@ -95,7 +95,7 @@ def aggregate_mesonet_data(start_date, end_date, av_variables, path, meta_path, 
         mrd.load_data()
         mrd.solar_data(radiation_var=radiation_var)
         for variable in av_variables:
-            print variable
+            print(variable)
             mrd.running_mean(variable, 12, 12)
             mrd.running_sd(variable, 12, 12)
         mrd.averaged_data_to_netcdf(nc_path, station_numbers=station_numbers)

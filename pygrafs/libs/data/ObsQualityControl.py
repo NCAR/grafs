@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from ObsSite import ObsSite
+from .ObsSite import ObsSite
 from pvlib.solarposition import get_solarposition
 from pvlib.clearsky import haurwitz
 from pvlib.irradiance import extraradiation
@@ -72,7 +72,7 @@ class ObsQualityControl(object):
         for new_column in new_columns:
             self.data[new_column] = np.zeros((self.data.shape[0]))
         for station in self.station_data.index:
-            print station
+            print(station)
             loc = Location(self.station_data.loc[station, "lat"],
                            self.station_data.loc[station, "lon"],
                            tz="UTC",

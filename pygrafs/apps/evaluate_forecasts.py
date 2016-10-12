@@ -15,11 +15,11 @@ def main():
     config = Config(args.config, required_attributes=required_attributes)
     forecast_data = load_forecast_file(config.forecast_file)
     total_scores = calc_scores_by_model(forecast_data, config)
-    print total_scores
+    print(total_scores)
     hour_scores = calc_scores_by_valid_hour(forecast_data, config)
-    for score_name, stats in hour_scores.iteritems():
-        print score_name
-        print stats
+    for score_name, stats in hour_scores.items():
+        print(score_name)
+        print(stats)
     plot_scores_by_valid_hour(hour_scores, config)
     return
 

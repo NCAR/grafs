@@ -12,18 +12,18 @@ def main():
     lat_lim = (20, 50)
     vars = ['slope', 'asp']
     data_dict = {}
-    print 'dem'
+    print('dem')
     data, lon_grid, lat_grid = load_data(path + "na_dem.bil")
     sub_lon, sub_lat, sub_data = get_grid_subset(lon_lim, lat_lim, lon_grid, lat_grid, data)
     data_dict['dem'] = sub_data
     for var in vars:
-        print var
+        print(var)
         filename = path + "na_{0}.bil".format(var)
         data = load_data(filename, projection=False)
         sub_lon, sub_lat, sub_data = get_grid_subset(lon_lim, lat_lim, lon_grid, lat_grid, data)
         data_dict[var] = sub_data
     out_filename = "/d2/dgagne/GTOPO30_HYDRO_1K_terrain.nc"
-    print "Output to netCDF"
+    print("Output to netCDF")
     data_to_netcdf(out_filename, data_dict, sub_lon, sub_lat)
     return
 
@@ -48,10 +48,11 @@ def load_data(filename, projection=True):
     else:
         return data
 
+
 def get_grid_subset(lon_lim, lat_lim, lon_grid, lat_grid, data):
     ll_bound = coord_to_index(lon_lim[0], lat_lim[0], lon_grid, lat_grid)
     ur_bound = coord_to_index(lon_lim[1], lat_lim[1], lon_grid, lat_grid)
-    print ll_bound, ur_bound
+    print(ll_bound, ur_bound)
     i_slice = slice(np.minimum(ll_bound[0], ur_bound[0]), np.maximum(ll_bound[0], ur_bound[0]))
     j_slice = slice(np.minimum(ll_bound[1], ur_bound[1]), np.maximum(ll_bound[1], ur_bound[1]))
     sub_lon = lon_grid[i_slice, j_slice]
