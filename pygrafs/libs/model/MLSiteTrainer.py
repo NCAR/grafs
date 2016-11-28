@@ -6,7 +6,7 @@ import pandas as pd
 from .gridding import nearest_neighbor, cressman
 from scipy.spatial.distance import pdist, squareform, cdist
 from sklearn.linear_model import LinearRegression
-
+from .persistence import Persistence
 
 __author__ = 'David John Gagne'
 
@@ -104,6 +104,9 @@ class MLSiteTrainer(MLTrainer):
 
         predictions = test_data[pred_columns]
         site_predictions = evaluation_data[pred_columns]
+        persist = Persistence(self.output_column, 24, "/d2/dgagne/mesonet_nc_2/mesonet", (-106, -85), (29, 40))
+        predictions["persistence"] = persist.make_predictions(predictions["valid_date"],
+                                                              train_stations, test_stations)["persistence"]
         for m, model_obj in enumerate(model_objs):
             print(model_names[m])
             self.models[model_names[m]] = {}

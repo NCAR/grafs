@@ -117,5 +117,27 @@ class ObsSite(object):
         self.file_obj.close()
 
 
+class ObsSeries(object):
+    def __init__(self, variable, dates, lon_bounds, lat_bounds, pathstart):
+        self.variable = variable
+        self.dates = pd.DatetimeIndex(dates)
+        self.lon_bounds = lon_bounds
+        self.lat_bounds = lat_bounds
+        self.pathstart = pathstart
+        self.data = None
+
+    def load_data(self):
+        unique_dates = pd.DatetimeIndex(np.unique(self.dates.date))
+        for unique_date in unique_dates:
+            site_file = self.pathstart + unique_date.strftime(".%Y%m%d") + ".nc"
+            site_day_data = ObsSite(site_file)
+            site_day_data.load_data(self.variable)
+            site_day_data.filter_by_location(self.variable, self.lon_bounds, self.lat_bounds)
+            if self.data is None:
+                self.data = site_day_data.data[self.variable]
+            else:
+                self.data = pd.concat((self.data, site_day_data.data[self.variable]), ignore_index=True)
+        self.data = self.data.loc[np.in1d(self.data["valid_date"], self.dates)]
+
 if __name__ == "__main__":
     main()

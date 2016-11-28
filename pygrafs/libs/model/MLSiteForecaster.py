@@ -24,13 +24,13 @@ class MLSiteForecaster(MLForecaster):
 
     def make_predictions(self, pred_columns):
         all_predictions = {}
-        for forecast_file, forecast_data in self.all_forecasts.iteritems():
+        for forecast_file, forecast_data in self.all_forecasts.items():
             sys.stdout.write("\rMake Predictions: " + forecast_file.split("/")[-1])
             sys.stdout.flush()
             predictions = forecast_data.loc[:, pred_columns]
-            for model_name, site_models in self.models.iteritems():
+            for model_name, site_models in self.models.items():
                 predictions[model_name] = np.zeros(predictions.shape[0])
-                for site in sorted(site_models.keys()):
+                for site in sorted(list(site_models.keys())):
                     site_rows = forecast_data[self.site_id_column] == site
                     predictions.loc[site_rows,
                                     model_name] = site_models[site].predict(forecast_data.loc[site_rows,
