@@ -104,9 +104,11 @@ class MLSiteTrainer(MLTrainer):
 
         predictions = test_data[pred_columns]
         site_predictions = evaluation_data[pred_columns]
-        persist = Persistence(self.output_column, 24, "/d2/dgagne/mesonet_nc_2/mesonet", (-106, -85), (29, 40))
-        predictions["persistence"] = persist.make_predictions(predictions["valid_date"],
-                                                              train_stations, test_stations)["persistence"]
+        persist = Persistence(self.output_column, 24, "/d2/dgagne/mesonet_nc_2/mesonet", (-106, -85), (25, 40))
+        print("Pred shape:", predictions.shape)
+        predictions.loc[:, "Persistence"] = persist.make_predictions(evaluation_data,
+                                                                     test_data)["Persistence"].values
+        print(predictions["Persistence"])
         for m, model_obj in enumerate(model_objs):
             print(model_names[m])
             self.models[model_names[m]] = {}

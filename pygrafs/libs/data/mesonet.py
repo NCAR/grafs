@@ -71,9 +71,11 @@ class MesonetRawData(object):
     def solar_data(self, radiation_var="SRAD"):
         columns = ["elevation", "azimuth", "zenith", "ETRC", "CLRI"]
         for station in self.stations:
-            loc = Location(self.station_info.loc[station, "nlat"], self.station_info.loc[station, "elon"], tz="UTC",
-                           altitude=self.station_info.loc[station, "elev"])
-            solar_data = get_solarposition(self.data[station].index, loc)
+            solar_data = get_solarposition(self.data[station].index, 
+                                           self.station_info.loc[station, "nlat"],
+                                           self.station_info.loc[station, "elon"],
+                                           altitude=self.station_info.loc[station, "elev"],
+                                           method="nrel_numba")
             solar_data["EXTR"] = extraradiation(self.data[station].index, method="spencer")
             solar_data["ETRC"] = solar_data["EXTR"] * np.cos(np.radians(solar_data["zenith"]))
             solar_data.loc[solar_data["zenith"] > 90, "ETRC"] = 0

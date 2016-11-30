@@ -26,7 +26,7 @@ class ObsSite(object):
         self.meta_data = self.load_meta_file()
         self.time_var = time_var
         self.file_obj = Dataset(self.filename)
-        self.times = num2date(self.file_obj.variables[time_var][:],
+        self.times = num2date(self.file_obj.variables[time_var][:].astype(np.int64),
                               self.file_obj.variables[time_var].units)
         self.data = {}
         self.station_data = None
