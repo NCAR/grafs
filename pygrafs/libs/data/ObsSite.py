@@ -137,6 +137,7 @@ class ObsSeries(object):
                 self.data = site_day_data.data[self.variable]
             else:
                 self.data = pd.concat((self.data, site_day_data.data[self.variable]), ignore_index=True)
+            site_day_data.close()
         self.data = self.data.loc[np.in1d(self.data["valid_date"], self.dates)]
 
 if __name__ == "__main__":
