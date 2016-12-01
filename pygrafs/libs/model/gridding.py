@@ -55,7 +55,7 @@ def cressman(predictions, grid_coordinates, y_name, x_name, radii=None):
 
     :return: A flat array of predictions at each grid point.
     """
-    distances = cdist(grid_coordinates[[x_name, y_name]], predictions[[x_name, y_name]], metric='sqeuclidean')
+    distances = cdist(grid_coordinates[[x_name, y_name]].values, predictions[[x_name, y_name]].values, metric='sqeuclidean')
     if radii is None:
         radii = np.percentile(np.sqrt(distances.ravel()), np.array([90, 75, 50, 25]))
     train_predictions = predictions.ix[:, -1].values.reshape((1, predictions.shape[0]))
