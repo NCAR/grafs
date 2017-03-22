@@ -192,6 +192,13 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
             solar_data = get_solar_grid_data(model_grid[model_vars[0]].times,
                                              model_grid[model_vars[0]].x,
                                              model_grid[model_vars[0]].y)
+            model_grid["CLRI"] = ModelGridSubset("CLRI", 
+                                                 model_grid[config.model_ghi_var].data / solar_data["ETRC"].data,
+                                                 model_grid[config.model_ghi_var].times,
+                                                 model_grid[config.model_ghi_var].y,
+                                                 model_grid[config.model_ghi_var].x,
+                                                 model_grid[config.model_ghi_var].init_time)
+            model_vars = sorted(model_grid.keys())
             for obs_date in sorted(all_obs.keys()):
                 print(obs_date)
                 if obs_date in unique_dates:
@@ -234,12 +241,12 @@ def match_model_obs(model_grids, all_obs, config, land_grids=None):
                                                                                       station_indices[:, 1]]
                         for svar, sgrid in solar_data.iteritems():
                             merged_data_step[svar + "_f"] = sgrid.data[mt, station_indices[:, 0], station_indices[:, 1]]
-                        merged_data_step["CLRI_f"] = model_grid[config.model_ghi_var].data[mt,
-                                                                                           station_indices[:, 0],
-                                                                                           station_indices[:, 1]] / \
-                                                     solar_data["ETRC"].data[mt,
-                                                                             station_indices[:, 0],
-                                                                             station_indices[:, 1]]
+                        #merged_data_step["CLRI_f"] = model_grid[config.model_ghi_var].data[mt,
+                                                    #                                       station_indices[:, 0],
+                                                    #                                       station_indices[:, 1]] / \
+                                                    # solar_data["ETRC"].data[mt,
+                                                    #                         station_indices[:, 0],
+                                                    #                         station_indices[:, 1]]
                         # Match model output instances with observations
                         if type(config.obs_var) == str:
                             merged_data_obs = pd.merge(merged_data_step, all_obs[vt.date()].data[config.obs_var],

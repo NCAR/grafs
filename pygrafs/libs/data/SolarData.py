@@ -2,7 +2,7 @@ from pvlib.solarposition import get_solarposition
 from pvlib.irradiance import extraradiation
 from pvlib.location import Location
 from pvlib.spa import *
-from .ModelGrid import ModelGridSubset
+from pygrafs.libs.data.ModelGrid import ModelGridSubset
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -24,8 +24,7 @@ class SolarData(object):
                 elev = self.elevations[r, c]
             else:
                 elev = 0
-            loc = Location(self.lat_grid[r, c], self.lon_grid[r, c], tz="UTC", altitude=elev)
-            location_info = get_solarposition(self.times, loc)
+            location_info = get_solarposition(self.times, self.lat_grid[r,c], self.lon_grid[r,c], elev, method="nrel_numba")
             location_info["EXTR"] = extraradiation(self.times, method="pyephem")
             location_info["ETRC"] = location_info["EXTR"] * np.cos(np.radians(location_info["zenith"]))
             location_info.loc[location_info["zenith"] > 90, "ETRC"] = 0
@@ -47,19 +46,10 @@ def make_solar_position_grid(times, lon_grid, lat_grid, elevations):
     temp = 12
     etr = extraradiation(times, method="pyephem").values
     etr = etr.reshape((etr.size, 1, 1))
-    #unix_times = times.astype(np.int64) / 10**9
-    rapid_times = pd.DatetimeIndex(start=times.values[0]-pd.Timedelta("1 hour"), end=times.values[-1], freq="5Min")
-    loc = Location(lat_grid[0,0], lon_grid[0,0], tz="UTC", altitude=0)
+    rapid_times = pd.DatetimeIndex(start=times.values[0]-pd.Timedelta("1 hour"), end=times.values[-1], freq="5Min", tz="UTC")
     for (r, c), l in np.ndenumerate(lon_grid):
-        #position_data[:, :, r, c] = solar_position_numpy(unix_times, lat_grid[r, c], lon_grid[r, c],
-        #                                                 elevations[r, c],
-        #                                                 pressure,
-        #                                                 temp, delta_t,
-        #                                                 atmos_refract, 1)[0:5]
-        loc.latitude = lat_grid[r, c]
-        loc.longitude = lon_grid[r, c]
-        position_data[:, :, r, c] = pd.rolling_mean(get_solarposition(rapid_times, loc, method="nrel_numba"),
-                                                    12).loc[times,position_variables].values.T
+        position_data[:, :, r, c] = get_solarposition(rapid_times, lat_grid[r,c], lon_grid[r,c], elevations[r,c], method="nrel_numba").rolling(
+                                                      12).mean().loc[times,position_variables].values.T
     solar_grids = {}
     for p, pos_var in enumerate(position_variables):
         solar_grids[pos_var] = ModelGridSubset(pos_var, position_data[p],

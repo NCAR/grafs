@@ -121,6 +121,8 @@ class MLTrainer(object):
         shuffled_sites = np.random.permutation(all_sites)
         train_stations = shuffled_sites[:shuffled_sites.size / 2]
         test_stations = shuffled_sites[shuffled_sites.size/2:]
+        for col in self.input_columns:
+            print(col, 'NaNs: ', np.count_nonzero(np.isnan(self.all_data[col])))
         run_day_of_year = pd.DatetimeIndex(self.all_data[run_date_col]).dayofyear
 
         train_data = self.all_data.loc[self.all_data[self.site_id_column].isin(train_stations) &
@@ -133,10 +135,10 @@ class MLTrainer(object):
             print(model_names[m])
             model_obj.fit(train_data.loc[:, self.input_columns].values, train_data.loc[:, self.output_column])
             if model_names[m] == "Random Forest Median":
-                predictions[model_names[m]] = np.median(np.array([t.predict(test_data.loc[:, self.input_columns].values) 
+                predictions.loc[:, model_names[m]] = np.median(np.array([t.predict(test_data.loc[:, self.input_columns].values) 
                                                                   for t in model_obj.estimators_]).T, axis=1)
             else:
-                predictions[model_names[m]] = model_obj.predict(test_data.loc[:, self.input_columns].values)
+                predictions.loc[:, model_names[m]] = model_obj.predict(test_data.loc[:, self.input_columns].values)
             self.models[model_names[m]] = model_obj
         self.show_feature_importance()
         return predictions, train_station_locations

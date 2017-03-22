@@ -6,7 +6,7 @@ from datetime import timedelta
 import numpy as np
 from netCDF4 import Dataset, num2date
 from scipy.ndimage.filters import convolve, maximum_filter, minimum_filter, \
-    median_filter, correlate, gaussian_gradient_magnitude
+    median_filter, percentile_filter, correlate, gaussian_gradient_magnitude
 from scipy.spatial import cKDTree
 
 
@@ -192,7 +192,10 @@ class ModelGridSubset(object):
         stat_arrays = np.zeros((len(stats), data.shape[0], data.shape[1]))
         for s, stat in enumerate(stats):
             if stat == 'mean':
-                stat_arrays[s] = convolve(data, window, mode='reflect') / float(window.size)
+                stat_arrays[s] = convolve(data, window.astype(float) / window.size, mode='reflect')
+            elif stat == "std":
+                mean_filter = convolve(data, window.astype(float) / window.size, mode="reflect")
+                stat_arrays[s] = np.sqrt(convolve((data - mean_filter) ** 2, window.astype(float) / window.size, mode="reflect"))
             elif stat == 'min':
                 stat_arrays[s] = minimum_filter(data, footprint=window, mode='reflect')
             elif stat == 'max':
@@ -201,6 +204,8 @@ class ModelGridSubset(object):
                 stat_arrays[s] = correlate(data, window, mode='reflect')
             elif stat == 'median':
                 stat_arrays[s] = median_filter(data, footprint=window, mode='reflect')
+            elif stat == "iqr":
+                stat_arrays[s] = percentile_filter(data, 75, footprint=window, mode="reflect") - percentile_filter(data, 25, footprint=window, mode="reflect")
             elif stat == 'gradient':
                 stat_arrays[s] = gaussian_gradient_magnitude(data, sigma=neighbor_radius, mode='reflect')
         return stat_arrays
