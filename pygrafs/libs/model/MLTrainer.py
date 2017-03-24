@@ -122,7 +122,10 @@ class MLTrainer(object):
         train_stations = shuffled_sites[:shuffled_sites.size / 2]
         test_stations = shuffled_sites[shuffled_sites.size/2:]
         for col in self.input_columns:
-            print(col, 'NaNs: ', np.count_nonzero(np.isnan(self.all_data[col])))
+            print(col, 'NaNs: ', np.count_nonzero(np.isnan(self.all_data[col])), "Infs: ", np.count_nonzero(np.isinf(self.all_data[col])))
+         
+        print(self.output_column, 'NaNs: ', np.count_nonzero(np.isnan(self.all_data[self.output_column])), 
+                                  "Infs: ", np.count_nonzero(np.isinf(self.all_data[self.output_column])))
         run_day_of_year = pd.DatetimeIndex(self.all_data[run_date_col]).dayofyear
 
         train_data = self.all_data.loc[self.all_data[self.site_id_column].isin(train_stations) &
@@ -133,7 +136,7 @@ class MLTrainer(object):
         predictions = test_data[pred_columns]
         for m, model_obj in enumerate(model_objs):
             print(model_names[m])
-            model_obj.fit(train_data.loc[:, self.input_columns].values, train_data.loc[:, self.output_column])
+            model_obj.fit(train_data.loc[:, self.input_columns].values, train_data.loc[:, self.output_column].values)
             if model_names[m] == "Random Forest Median":
                 predictions.loc[:, model_names[m]] = np.median(np.array([t.predict(test_data.loc[:, self.input_columns].values) 
                                                                   for t in model_obj.estimators_]).T, axis=1)

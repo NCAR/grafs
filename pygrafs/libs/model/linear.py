@@ -6,8 +6,8 @@ import numpy as np
 
 def eval_linear_model(X, y, features, train_indices, test_indices, fit_intercept, normalize):
     lm = LinearRegression(fit_intercept=fit_intercept, normalize=normalize)
-    lm.fit(X[train_indices, features], y)
-    predictions = lm.predict(X[test_indices, features])
+    lm.fit(X[train_indices][:, features].reshape((-1, len(features))), y[train_indices])
+    predictions = lm.predict(X[test_indices][:, features].reshape((-1, len(features))))
     mse = np.mean((predictions - y[test_indices]) ** 2)
     return mse
 
@@ -21,6 +21,7 @@ class StepwiseLinearRegression(object):
         self.n_jobs = n_jobs
         self.linear_model = LinearRegression(fit_intercept=self.fit_intercept, normalize=self.normalize)
         self.features = []
+        self.feature_importances_ = None
 
     def fit(self, X, y):
         current_percent_gain = 1
@@ -30,8 +31,9 @@ class StepwiseLinearRegression(object):
             while current_percent_gain > self.percent_gain and len(feature_indices) > 0:
                 all_scores = np.zeros((len(feature_indices), self.num_folds))
                 kf = KFold(n_splits=self.num_folds)
+                splitter = kf.split(X)
                 for k in range(self.num_folds):
-                    train_indices, test_indices = kf.split(X)
+                    train_indices, test_indices = splitter.next()
                     all_scores[:, k] = parallel(delayed(eval_linear_model)(X,
                                                                            y,
                                                                            self.features + [f],
@@ -47,7 +49,17 @@ class StepwiseLinearRegression(object):
                     current_score = best_score
                     self.features.append(feature_indices[best_model])
                     feature_indices.remove(feature_indices[best_model])
-                    self.linear_model.fit(X[:, self.features], y)
+                    self.linear_model.fit(X[:, self.features].reshape((-1, len(self.features))), y)
+                    self.feature_importances_ = np.zeros(X.shape[1])
+                    self.feature_importances_[self.features] = np.abs(self.linear_model.coef_)
+            print("Features chosen: ", self.features)
 
     def predict(self, X):
         return self.linear_model.predict(X[:, self.features])
+
+if __name__ == "__main__":
+    from sklearn.datasets import load_diabetes
+    x, y = load_diabetes(return_X_y=True)
+    print(x.shape, y.shape)
+    slr = StepwiseLinearRegression()
+    slr.fit(x, y)

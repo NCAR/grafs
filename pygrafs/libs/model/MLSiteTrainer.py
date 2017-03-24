@@ -116,16 +116,16 @@ class MLSiteTrainer(MLTrainer):
                 print(site_name)
                 site_data = train_data.loc[train_data[self.site_id_column] == site_name]
                 self.models[model_names[m]][site_name] = deepcopy(model_obj)
-                self.models[model_names[m]][site_name].fit(site_data.loc[:, self.input_columns],
-                                                           site_data.loc[:, self.output_column])
+                self.models[model_names[m]][site_name].fit(site_data.loc[:, self.input_columns].values,
+                                                           site_data.loc[:, self.output_column].values)
                 if interp_method in ["nearest", "cressman"]:
                     eval_site_data = evaluation_data.loc[evaluation_data[self.site_id_column] == site_name, self.input_columns]
                     eval_site_id = evaluation_data[self.site_id_column] == site_name
                     if model_names[m] == "Random Forest Median":
-                        site_predictions.loc[eval_site_id, model_names[m]] = np.median(np.array([t.predict(eval_site_data) for t in self.models[model_names[m]][site_name].estimators_]).T, axis=1)
+                        site_predictions.loc[eval_site_id, model_names[m]] = np.median(np.array([t.predict(eval_site_data.values) for t in self.models[model_names[m]][site_name].estimators_]).T, axis=1)
                     else:
                         site_predictions.loc[eval_site_id, model_names[m]] = self.models[model_names[m]][site_name].predict(
-                            eval_site_data)
+                            eval_site_data.values)
             if interp_method == "nearest":
                 for day in np.unique(evaluation_data["run_day_of_year"].values):
                     print("Day", day)
